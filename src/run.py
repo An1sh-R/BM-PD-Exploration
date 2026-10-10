@@ -1,0 +1,310 @@
+"""Experiment 1 sweep: Bush-Mosteller (BM) learners, average payoff, weak PD.
+One row per run in results/sweep_runs.csv.
+
+Run from project root:
+    python src/run.py                  full sweep (long, can be stopped and restarted)
+    python src/run.py --test           tiny grid, 2 small graphs, few steps (checks the code)
+    python src/run.py --processes 4    fewer worker processes, e.g. while using the laptop
+                                       (default 12; can change between restarts)
+
+Safe to stop any time (Ctrl+C): every finished run is written straight to the CSV,
+and a restart skips runs already in it. Only the runs in progress are lost.
+
+Graphs: for each of the 5 real networks: real, degseq, shuffled (see GRAPHS).
+"<real>_degseq" = same degrees, links rewired at random (5 rewirings, rep r uses r % 5).
+"<real>_shuffled" = the real graph, but players get new random seats after every
+round (mentor's idea): same network, no fixed partners.
+
+Aspiration is given as a fraction of b (A = a * b): the pilot showed the
+interesting band moves with b.
+
+Runs use the numpy version of BM (fast_model.py, ~10-20x faster than the Mesa
+reference in model.py). check_fast_model.py checks numpy against Mesa.
+"""
+import csv
+import os
+import sys
+import time
+from multiprocessing import Pool
+
+import numpy as np
+
+from fast_model import neighbour_matrix, run_bm
+from networks import REAL_FILES, RESULTS_DIR, all_names, load_graph, rewired_names
+
+TEST = "--test" in sys.argv
+
+# ---- grid ------------------------------------------------------------------
+# Decided: epsilon 0.05, b = 1.1-2.0, full beta x a grid, 10 reps everywhere.
+if TEST:
+    GRAPHS = ["lastfm", "lastfm_degseq", "lastfm_shuffled",
+              "twitch", "twitch_degseq", "twitch_shuffled"]
+    BETAS = [0.1, 10.0]
+    A_FRACTIONS = [0.3, 0.7]  # beta=10, a=0.7, b=2 oscillates: tests that flag
+    TEMPTATIONS = [2.0]
+    REPS = 2
+    STEPS = 300
+    WINDOW = 100
+    OUT_NAME = "sweep_test"
+else:
+    # Decided 2026-10-07: real, degseq, shuffled only (no ER/BA/WS). Small networks
+    # first, so their results are complete before the slow GitHub/Deezer runs.
+    NETWORK_ORDER = ["facebook", "lastfm", "twitch", "deezer", "github"]
+    GRAPHS = []
+    for real_name in NETWORK_ORDER:
+        GRAPHS.append(real_name)
+        GRAPHS.append(real_name + "_degseq")
+        GRAPHS.append(real_name + "_shuffled")
+    # kept on purpose: beta=0.01 still drifts at 1000 steps, a=0.9 is the dead zone (flag in analysis)
+    BETAS = [0.01, 0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 100.0]
+    A_FRACTIONS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    TEMPTATIONS = [1.1, 1.3, 1.5, 1.7, 2.0]
+    # 10 everywhere (decided 2026-10-07): affordable with fast_model. The extra reps in the
+    # high-beta band were dropped: the pilot "bistability" there was a period-2 oscillation.
+    REPS = 10
+    STEPS = 1500
+    WINDOW = 500  # final cooperation = mean over the last 500 steps (eps=0.05 pilot: most flat by ~600)
+    OUT_NAME = "sweep"
+
+EPSILON = 0.05  # slip = flip the intended action, as Ezaki & Masuda 2017
+# 8 processes on this 10-core / 16-thread laptop: full sweep ~5 h with fast_model
+# (measured 2026-10-07). 12 when the laptop is otherwise idle.
+DEFAULT_PROCESSES = 12
+N_BUILD_PROCESSES = 3  # building rewired graphs needs more memory per process
+
+
+def processes_from_command_line():
+    """Number after --processes, or DEFAULT_PROCESSES. Read in main() only: worker
+    processes import this file too and must not stop on a bad argument."""
+    if "--processes" not in sys.argv:
+        return DEFAULT_PROCESSES
+    position = sys.argv.index("--processes")
+    if position + 1 >= len(sys.argv) or not sys.argv[position + 1].isdigit():
+        sys.exit("--processes needs a whole number, e.g. --processes 4")
+    n_processes = int(sys.argv[position + 1])
+    if n_processes < 1:
+        sys.exit("--processes must be at least 1")
+    return n_processes
+
+RUNS_PATH = os.path.join(RESULTS_DIR, OUT_NAME + "_runs.csv")
+NODES_DIR = os.path.join(RESULTS_DIR, OUT_NAME + "_nodes")  # per-node cooperation
+
+COLUMNS = ["run_id", "graph", "family", "graph_type", "agent", "b", "beta",
+           "a_fraction", "aspiration", "epsilon", "kappa", "rep", "source_graph", "steps",
+           "cooperation", "cooperation_std", "drift", "even_odd_gap", "mean_p", "seconds"]
+
+
+# ---- jobs ------------------------------------------------------------------
+
+def make_run_id(job):
+    return (f"{job['graph']}|{job['agent']}|b={job['b']}|beta={job['beta']}"
+            f"|a={job['a_fraction']}|rep={job['rep']}")
+
+
+def source_graph(graph, rep):
+    """The graph file a run actually loads.
+    degseq: rep r uses rewiring r % 5, so the result does not hang on one random graph.
+    shuffled: the real graph (players are re-seated during the run instead)."""
+    if graph.endswith("_degseq"):
+        real_name = graph[:-len("_degseq")]
+        names = rewired_names(real_name)
+        return names[rep % len(names)]
+    if graph.endswith("_shuffled"):
+        return graph[:-len("_shuffled")]
+    return graph
+
+
+def make_jobs():
+    """Every run in the sweep, grouped by graph (workers then reuse the loaded graph)."""
+    jobs = []
+    for graph in GRAPHS:
+        for b in TEMPTATIONS:
+            for beta in BETAS:
+                for a_fraction in A_FRACTIONS:
+                    for rep in range(REPS):
+                        jobs.append({"graph": graph, "agent": "bm", "b": b, "beta": beta,
+                                     "a_fraction": a_fraction, "rep": rep})
+    for job in jobs:
+        job["run_id"] = make_run_id(job)
+        job["source_graph"] = source_graph(job["graph"], job["rep"])
+    return jobs
+
+
+def remove_cut_off_line():
+    """If the sweep was killed while writing, the last line has no newline. Drop it,
+    otherwise the next row would be glued onto it."""
+    if not os.path.exists(RUNS_PATH):
+        return
+    with open(RUNS_PATH, newline="") as f:
+        text = f.read()
+    if text == "" or text.endswith("\n"):
+        return
+    last_newline = text.rfind("\n")
+    with open(RUNS_PATH, "w", newline="") as f:
+        f.write(text[:last_newline + 1])
+    print("removed a cut-off last line from", RUNS_PATH)
+
+
+def finished_run_ids():
+    """run_ids already in the output CSV (so a restart skips them)."""
+    done = set()
+    if not os.path.exists(RUNS_PATH):
+        return done
+    with open(RUNS_PATH, newline="") as f:
+        for row in csv.DictReader(f):
+            done.add(row["run_id"])
+    return done
+
+
+# ---- one run ---------------------------------------------------------------
+
+# Each worker keeps only the last graph it loaded: holding all 25 graphs in
+# every worker would use several GB of memory.
+cached_name = None
+cached_graph = None
+cached_matrix = None  # (A, degree) for the numpy BM model
+
+
+def get_graph(name):
+    """Returns the networkx graph and its (A, degree) neighbour matrix."""
+    global cached_name, cached_graph, cached_matrix
+    if name != cached_name:
+        cached_graph = load_graph(name)
+        cached_matrix = neighbour_matrix(cached_graph)
+        cached_name = name
+    return cached_graph, cached_matrix
+
+
+def graph_type(name):
+    if name in REAL_FILES:
+        return "real"
+    return name.rsplit("_", 1)[1]
+
+
+def run_one(job):
+    start = time.time()
+    G, (A, degree) = get_graph(job["source_graph"])
+    record_from = STEPS - WINDOW
+    shuffle = job["graph"].endswith("_shuffled")
+
+    aspiration = round(job["a_fraction"] * job["b"], 6)  # avoid 0.44999999999999996
+    curve, p, node_cooperation = run_bm(A, degree, job["b"], job["beta"], aspiration,
+                                        EPSILON, STEPS, record_from=record_from,
+                                        shuffle_seats=shuffle, seed=job["rep"])
+
+    window = np.array(curve[record_from:])
+
+    row = {
+        "run_id": job["run_id"],
+        "graph": job["graph"],
+        "family": job["graph"].split("_")[0],
+        "graph_type": graph_type(job["graph"]),
+        "agent": job["agent"],
+        "b": job["b"],
+        "beta": job["beta"],
+        "a_fraction": job["a_fraction"],
+        "aspiration": aspiration,
+        "epsilon": EPSILON,
+        "kappa": "-",  # Fermi only; kept so the CSV columns stay the same
+        "rep": job["rep"],
+        "source_graph": job["source_graph"],
+        "steps": STEPS,
+        "cooperation": float(window.mean()),
+        "cooperation_std": float(window.std()),
+        # second half of the window minus first half: ~0 if the run had settled,
+        # big if it was still moving (slow convergence: longer runs needed)
+        "drift": float(window[WINDOW // 2:].mean() - window[:WINDOW // 2].mean()),
+        # every-other-round cooperation gap: big if the whole population flips C <-> D
+        # each round (period-2 oscillation, high beta). The mean above hides it.
+        "even_odd_gap": float(abs(window[0::2].mean() - window[1::2].mean())),
+        "mean_p": float(p.mean()),
+        "seconds": round(time.time() - start, 2),
+    }
+
+    # Per-node cooperation: real graphs, first rep only (keeps disk use small).
+    node_values = None
+    if job["graph"] in REAL_FILES and job["rep"] == 0:
+        node_values = np.array(node_cooperation, dtype=np.float32)
+    return row, node_values
+
+
+def node_file_name(run_id):
+    # run_id has | and = which are awkward in file names
+    return run_id.replace("|", "__").replace("=", "-") + ".npy"
+
+
+def save_node_file(run_id, node_values):
+    """Save to a temporary file, then rename: a crash never leaves a half-written file."""
+    path = os.path.join(NODES_DIR, node_file_name(run_id))
+    temp_path = path[:-len(".npy")] + "_tmp.npy"  # np.save adds .npy if missing
+    np.save(temp_path, node_values)
+    os.replace(temp_path, path)
+
+
+# ---- main ------------------------------------------------------------------
+
+def build_graph(name):
+    load_graph(name)  # builds and caches it in data/synthetic/ if missing
+    return name
+
+
+def build_missing_graphs(jobs):
+    """Build every graph file the sweep needs before the runs start, so parallel
+    workers never try to create the same file at the same time."""
+    needed = []
+    for job in jobs:
+        if job["source_graph"] not in needed:
+            needed.append(job["source_graph"])
+    print(f"making sure {len(needed)} graph files exist (first time: a GitHub rewiring takes ~5 min)")
+    with Pool(N_BUILD_PROCESSES) as pool:
+        for name in pool.imap_unordered(build_graph, needed):
+            pass
+
+
+def main():
+    n_processes = processes_from_command_line()
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    os.makedirs(NODES_DIR, exist_ok=True)
+
+    remove_cut_off_line()
+    all_jobs = make_jobs()
+    build_missing_graphs(all_jobs)
+    done = finished_run_ids()
+    todo = []
+    for job in all_jobs:
+        if job["run_id"] not in done:
+            todo.append(job)
+    # keep GRAPHS order (small networks first); inside a graph, same file next to
+    # each other so workers mostly reuse their loaded graph
+    graph_position = {}
+    for i, graph in enumerate(GRAPHS):
+        graph_position[graph] = i
+    todo.sort(key=lambda job: (graph_position[job["graph"]], job["source_graph"]))
+    print(f"{len(all_jobs)} runs in sweep, {len(done)} already done, {len(todo)} to go, "
+          f"{n_processes} processes")
+    if not todo:
+        return
+
+    new_file = not os.path.exists(RUNS_PATH)
+    start = time.time()
+    with open(RUNS_PATH, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=COLUMNS)
+        if new_file:
+            writer.writeheader()
+        with Pool(n_processes) as pool:
+            for i, (row, node_values) in enumerate(pool.imap_unordered(run_one, todo)):
+                # node file first: the CSV row marks the run as done. A crash in between
+                # just means the run is redone (and its node file overwritten).
+                if node_values is not None:
+                    save_node_file(row["run_id"], node_values)
+                writer.writerow(row)
+                f.flush()  # hand the row to Windows right away
+                if (i + 1) % 20 == 0 or i + 1 == len(todo):
+                    os.fsync(f.fileno())  # make sure it is on disk (power cut loses < 20 runs)
+                    minutes = (time.time() - start) / 60
+                    left = minutes / (i + 1) * (len(todo) - i - 1)
+                    print(f"  {i + 1}/{len(todo)} done, {minutes:.1f} min so far, ~{left:.0f} min left")
+
+
+if __name__ == "__main__":
+    main()
