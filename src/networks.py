@@ -3,6 +3,7 @@
 Run `python src/networks.py` from the project root to build all graphs and
 write results/topology_table.csv.
 """
+import gzip
 import os
 
 import networkx as nx
@@ -20,6 +21,15 @@ REAL_FILES = {
     "github": "github_edges.csv",
     "lastfm": "lastfm_edges.csv",
     "twitch": "twitch_ENGB_edges.csv",
+    # added 2026-10-12 to test the experiment-1 claims on other structures.
+    # SNAP originals (gzipped). emaileu and gnutella are directed: read as undirected.
+    # asinternet (Internet routers) and gnutella (file-sharing peers) are NOT social
+    # networks: non-social contrasts only.
+    "grqc": "ca-GrQc.txt.gz",
+    "astroph": "ca-AstroPh.txt.gz",
+    "emaileu": "email-Eu-core.txt.gz",
+    "asinternet": "as20000102.txt.gz",
+    "gnutella": "p2p-Gnutella08.txt.gz",
 }
 SYNTH_TYPES = ["er", "ba", "ws", "degseq"]
 
@@ -39,10 +49,11 @@ def clean(G):
 
 
 def load_real(name):
-    """Read an edge list. Handles comma or space separators and a header line."""
+    """Read an edge list. Handles comma or space separators, header/comment lines and .gz files."""
     path = os.path.join(DATA_DIR, REAL_FILES[name])
     G = nx.Graph()
-    with open(path) as f:
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt") as f:
         for line in f:
             parts = line.replace(",", " ").split()
             if not parts[0].isdigit():  # header line
@@ -186,6 +197,55 @@ def load_graph(name):
         nx.write_edgelist(G, temp_path, data=False)
         os.replace(temp_path, path)
     return nx.read_edgelist(path, nodetype=int)
+
+
+# Same-degree shuffle (decided 2026-10-13): players are re-seated every round, but only
+# among seats in the same degree group, so they lose their partners and keep (about)
+# their degree. Groups = factor-2 degree bins (1, 2-3, 4-7, ...). Top bins hold only
+# a few hubs: a group needs MIN_GROUP seats, otherwise a hub with a unique degree could
+# never move and would keep its partners. A too-small group borrows only the
+# highest-degree nodes it needs from the next bin down (first version merged whole
+# bins: top group spanned 8-11x in degree on Facebook, GitHub, asinternet).
+MIN_GROUP = 10
+
+
+def same_degree_groups(G, min_size=MIN_GROUP):
+    """List of node lists. Every node in exactly one group; each group >= min_size
+    nodes (unless the whole graph is smaller). Nodes with equal degree are never split."""
+    bins = {}
+    for node in range(G.number_of_nodes()):
+        bin_index = int(np.floor(np.log2(G.degree(node))))
+        if bin_index not in bins:
+            bins[bin_index] = []
+        bins[bin_index].append(node)
+
+    groups = []
+    carry = []  # nodes from higher bins still waiting for a big enough group
+    for bin_index in sorted(bins, reverse=True):  # from the hubs down
+        members = sorted(bins[bin_index], key=G.degree, reverse=True)
+        if carry:
+            # borrow the highest-degree nodes of this bin, never splitting equal degrees
+            need = min_size - len(carry)
+            taken = members[:need]
+            rest = members[need:]
+            while rest and taken and G.degree(rest[0]) == G.degree(taken[-1]):
+                taken.append(rest.pop(0))
+            carry = carry + taken
+            if len(carry) < min_size:
+                continue
+            groups.append(carry)
+            carry = []
+            members = rest
+        if len(members) >= min_size:
+            groups.append(members)
+        else:
+            carry = members  # too small: borrows from the next bin down
+    if carry:  # lowest leftovers: join the last group
+        if groups:
+            groups[-1] = groups[-1] + carry
+        else:
+            groups.append(carry)
+    return groups
 
 
 def check_graph(G):

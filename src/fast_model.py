@@ -41,8 +41,10 @@ def bm_update(p, coop, payoff, beta, aspiration):
 
 
 def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
-           initial_coop=0.5, shuffle_seats=False, seed=None):
+           initial_coop=0.5, shuffle_seats=False, seat_groups=None, seed=None):
     """One BM run. Same arguments as CooperationModel (agent_type="bm").
+    seat_groups (with shuffle_seats): list of node lists (networks.same_degree_groups);
+    players are then re-seated only within their group. None = any seat.
 
     Returns:
         curve: cooperation fraction in every round (length steps)
@@ -51,6 +53,10 @@ def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
     """
     rng = np.random.default_rng(seed)
     n = A.shape[0]
+    group_arrays = []
+    if seat_groups is not None:
+        for group in seat_groups:
+            group_arrays.append(np.array(group))
     p = np.full(n, float(initial_coop))
     coop_rounds = np.zeros(n)  # rounds spent cooperating, from record_from on
     rounds_counted = 0
@@ -72,7 +78,13 @@ def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
 
         if shuffle_seats:
             # players take new random seats: reorder everything that belongs to a player
-            new_order = rng.permutation(n)
+            if seat_groups is None:
+                new_order = rng.permutation(n)
+            else:
+                # only swap seats inside a degree group: seat i gets a player from its own group
+                new_order = np.arange(n)
+                for group in group_arrays:
+                    new_order[group] = group[rng.permutation(len(group))]
             p = p[new_order]
             coop_rounds = coop_rounds[new_order]
 

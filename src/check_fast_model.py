@@ -16,7 +16,7 @@ from scipy.stats import ttest_ind
 
 from fast_model import bm_update, neighbour_matrix, run_bm, weak_pd_payoffs
 from model import CooperationModel
-from networks import RESULTS_DIR, load_graph
+from networks import RESULTS_DIR, load_graph, same_degree_groups
 
 GRAPH = "lastfm"  # the pilot graph
 B = 1.5  # except the last cell
@@ -34,6 +34,9 @@ CELLS = [
     (B, 100.0, 0.2, False),
     (B, 0.3, 0.5, True),
     (1.9, 10.0, 0.79, False),
+    # same-degree shuffle (added 2026-10-13): seats swapped only inside degree groups
+    (B, 0.3, 0.5, "samedeg"),
+    (B, 10.0, 0.4, "samedeg"),
 ]
 
 
@@ -86,20 +89,25 @@ def check_bm_update(G):
 def compare_runs(G, A, degree):
     rows = []
     record_from = STEPS - WINDOW
+    groups = same_degree_groups(G)
     for b, beta, a_fraction, shuffled in CELLS:
         aspiration = round(a_fraction * b, 6)
+        seat_groups = None
+        if shuffled == "samedeg":
+            seat_groups = groups
         mesa_values = []
         fast_values = []
         for seed in range(SEEDS):
             model = CooperationModel(G, "bm", b=b, beta=beta, aspiration=aspiration,
-                                     epsilon=EPSILON, shuffle_seats=shuffled, seed=seed)
+                                     epsilon=EPSILON, shuffle_seats=bool(shuffled),
+                                     seat_groups=seat_groups, seed=seed)
             model.run(STEPS)
             curve = model.datacollector.model_vars["cooperation"]
             mesa_values.append(np.mean(curve[record_from:]))
 
             curve, p, nodes = run_bm(A, degree, b, beta, aspiration, EPSILON, STEPS,
-                                     record_from=record_from, shuffle_seats=shuffled,
-                                     seed=seed)
+                                     record_from=record_from, shuffle_seats=bool(shuffled),
+                                     seat_groups=seat_groups, seed=seed)
             fast_values.append(curve[record_from:].mean())
 
         p_value = ttest_ind(mesa_values, fast_values, equal_var=False).pvalue

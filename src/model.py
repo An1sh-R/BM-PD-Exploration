@@ -121,7 +121,8 @@ def cooperation_fraction(model):
 class CooperationModel(mesa.Model):
     def __init__(self, G, agent_type, b=1.5, payoff_scheme="average", kappa=0.1,
                  beta=1.0, aspiration=0.5, epsilon=0.2, initial_coop=0.5,
-                 record_from=0, game="weak_pd", c=1.0, shuffle_seats=False, seed=None):
+                 record_from=0, game="weak_pd", c=1.0, shuffle_seats=False, seat_groups=None,
+                 seed=None):
         """
         G: networkx graph, connected, nodes labelled 0..n-1 (see networks.py)
         agent_type: "fermi" or "bm"
@@ -134,6 +135,9 @@ class CooperationModel(mesa.Model):
         shuffle_seats: if True, players get new random nodes after every round. The
             network stays the same, but nobody keeps fixed partners (Ezaki & Masuda 2017).
             node_cooperation() is then per player, not per node.
+        seat_groups: with shuffle_seats, a list of node lists (networks.same_degree_groups):
+            players then move only between seats of the same group (keep about their
+            degree, lose their partners). None = any seat.
         seed: int, makes the run repeatable
         """
         super().__init__(rng=seed)  # int seed makes runs repeatable
@@ -156,6 +160,7 @@ class CooperationModel(mesa.Model):
         self.rounds_counted = 0
         self.G = G
         self.shuffle_seats = shuffle_seats
+        self.seat_groups = seat_groups
         # Neighbour lists looked up once: re-seating every round would otherwise
         # ask networkx for them again each round (slow on big graphs).
         self.neighbor_nodes = []
@@ -195,12 +200,24 @@ class CooperationModel(mesa.Model):
         self.rounds_played += 1
 
         if self.shuffle_seats:
-            new_order = list(self.players)
-            self.random.shuffle(new_order)
+            if self.seat_groups is None:
+                new_order = list(self.players)
+                self.random.shuffle(new_order)
+            else:
+                # only players sitting in the same degree group swap seats
+                new_order = list(self.seating)
+                for group in self.seat_groups:
+                    members = []
+                    for node in group:
+                        members.append(self.seating[node])
+                    self.random.shuffle(members)
+                    for node, player in zip(group, members):
+                        new_order[node] = player
             self.seat_players(new_order)
 
     def seat_players(self, order):
         """order[node] = player sitting on that node. Sets everyone's neighbour list."""
+        self.seating = list(order)  # who sits where now (self.players keeps player order)
         for node in range(len(order)):
             order[node].neighbors = [order[v] for v in self.neighbor_nodes[node]]
 

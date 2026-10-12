@@ -4,6 +4,9 @@ One row per run in results/sweep_runs.csv.
 Run from project root:
     python src/run.py                  full sweep (long, can be stopped and restarted)
     python src/run.py --test           tiny grid, 2 small graphs, few steps (checks the code)
+    python src/run.py --more           same grid on every other graph -> results/sweep_more_runs.csv:
+                                       5 added networks (real, degseq, shuffled, ER, BA, WS)
+                                       + ER/BA/WS of the original 5
     python src/run.py --processes 4    fewer worker processes, e.g. while using the laptop
                                        (default 12; can change between restarts)
 
@@ -14,6 +17,9 @@ Graphs: for each of the 5 real networks: real, degseq, shuffled (see GRAPHS).
 "<real>_degseq" = same degrees, links rewired at random (5 rewirings, rep r uses r % 5).
 "<real>_shuffled" = the real graph, but players get new random seats after every
 round (mentor's idea): same network, no fixed partners.
+"<real>_samedeg" (--more, added 2026-10-13) = like shuffled, but players only swap
+seats inside their degree group (networks.same_degree_groups): no fixed partners,
+but each player keeps about its degree.
 
 Aspiration is given as a fraction of b (A = a * b): the pilot showed the
 interesting band moves with b.
@@ -30,15 +36,18 @@ from multiprocessing import Pool
 import numpy as np
 
 from fast_model import neighbour_matrix, run_bm
-from networks import REAL_FILES, RESULTS_DIR, all_names, load_graph, rewired_names
+from networks import (REAL_FILES, RESULTS_DIR, all_names, load_graph, rewired_names,
+                      same_degree_groups)
 
 TEST = "--test" in sys.argv
+# --more: same experiment on the 5 networks added 2026-10-12, own CSV (sweep_more_runs.csv)
+MORE = "--more" in sys.argv
 
 # ---- grid ------------------------------------------------------------------
 # Decided: epsilon 0.05, b = 1.1-2.0, full beta x a grid, 10 reps everywhere.
 if TEST:
-    GRAPHS = ["lastfm", "lastfm_degseq", "lastfm_shuffled",
-              "twitch", "twitch_degseq", "twitch_shuffled"]
+    GRAPHS = ["lastfm", "lastfm_degseq", "lastfm_shuffled", "lastfm_samedeg", "lastfm_er",
+              "twitch", "twitch_degseq", "twitch_shuffled", "twitch_samedeg", "twitch_ws"]
     BETAS = [0.1, 10.0]
     A_FRACTIONS = [0.3, 0.7]  # beta=10, a=0.7, b=2 oscillates: tests that flag
     TEMPTATIONS = [2.0]
@@ -50,11 +59,24 @@ else:
     # Decided 2026-10-07: real, degseq, shuffled only (no ER/BA/WS). Small networks
     # first, so their results are complete before the slow GitHub/Deezer runs.
     NETWORK_ORDER = ["facebook", "lastfm", "twitch", "deezer", "github"]
+    OUT_NAME = "sweep"
     GRAPHS = []
     for real_name in NETWORK_ORDER:
         GRAPHS.append(real_name)
         GRAPHS.append(real_name + "_degseq")
         GRAPHS.append(real_name + "_shuffled")
+    if MORE:
+        # Decided 2026-10-13: every graph we have. Same grid as experiment 1, so tables
+        # compare directly. 5 added networks: all 7 types. Original 5: only samedeg and
+        # ER/BA/WS (their real/degseq/shuffled are in sweep_runs.csv). Small/cheap first.
+        OUT_NAME = "sweep_more"
+        GRAPHS = []
+        for real_name in ["emaileu", "grqc", "gnutella", "asinternet", "astroph"]:
+            for suffix in ["", "_degseq", "_shuffled", "_samedeg", "_er", "_ba", "_ws"]:
+                GRAPHS.append(real_name + suffix)
+        for real_name in NETWORK_ORDER:
+            for suffix in ["_samedeg", "_er", "_ba", "_ws"]:
+                GRAPHS.append(real_name + suffix)
     # kept on purpose: beta=0.01 still drifts at 1000 steps, a=0.9 is the dead zone (flag in analysis)
     BETAS = [0.01, 0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 100.0]
     A_FRACTIONS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
@@ -64,7 +86,6 @@ else:
     REPS = 10
     STEPS = 1500
     WINDOW = 500  # final cooperation = mean over the last 500 steps (eps=0.05 pilot: most flat by ~600)
-    OUT_NAME = "sweep"
 
 EPSILON = 0.05  # slip = flip the intended action, as Ezaki & Masuda 2017
 # 8 processes on this 10-core / 16-thread laptop: full sweep ~5 h with fast_model
@@ -104,13 +125,15 @@ def make_run_id(job):
 def source_graph(graph, rep):
     """The graph file a run actually loads.
     degseq: rep r uses rewiring r % 5, so the result does not hang on one random graph.
-    shuffled: the real graph (players are re-seated during the run instead)."""
+    shuffled, samedeg: the real graph (players are re-seated during the run instead)."""
     if graph.endswith("_degseq"):
         real_name = graph[:-len("_degseq")]
         names = rewired_names(real_name)
         return names[rep % len(names)]
     if graph.endswith("_shuffled"):
         return graph[:-len("_shuffled")]
+    if graph.endswith("_samedeg"):
+        return graph[:-len("_samedeg")]
     return graph
 
 
@@ -163,16 +186,18 @@ def finished_run_ids():
 cached_name = None
 cached_graph = None
 cached_matrix = None  # (A, degree) for the numpy BM model
+cached_groups = None  # degree groups for the same-degree shuffle
 
 
 def get_graph(name):
-    """Returns the networkx graph and its (A, degree) neighbour matrix."""
-    global cached_name, cached_graph, cached_matrix
+    """Returns the networkx graph, its (A, degree) neighbour matrix and degree groups."""
+    global cached_name, cached_graph, cached_matrix, cached_groups
     if name != cached_name:
         cached_graph = load_graph(name)
         cached_matrix = neighbour_matrix(cached_graph)
+        cached_groups = same_degree_groups(cached_graph)
         cached_name = name
-    return cached_graph, cached_matrix
+    return cached_graph, cached_matrix, cached_groups
 
 
 def graph_type(name):
@@ -183,14 +208,19 @@ def graph_type(name):
 
 def run_one(job):
     start = time.time()
-    G, (A, degree) = get_graph(job["source_graph"])
+    G, (A, degree), groups = get_graph(job["source_graph"])
     record_from = STEPS - WINDOW
-    shuffle = job["graph"].endswith("_shuffled")
+    kind = graph_type(job["graph"])
+    shuffle = kind in ("shuffled", "samedeg")
+    seat_groups = None
+    if kind == "samedeg":
+        seat_groups = groups
 
     aspiration = round(job["a_fraction"] * job["b"], 6)  # avoid 0.44999999999999996
     curve, p, node_cooperation = run_bm(A, degree, job["b"], job["beta"], aspiration,
                                         EPSILON, STEPS, record_from=record_from,
-                                        shuffle_seats=shuffle, seed=job["rep"])
+                                        shuffle_seats=shuffle, seat_groups=seat_groups,
+                                        seed=job["rep"])
 
     window = np.array(curve[record_from:])
 
@@ -221,9 +251,13 @@ def run_one(job):
         "seconds": round(time.time() - start, 2),
     }
 
-    # Per-node cooperation: real graphs, first rep only (keeps disk use small).
+    # Per-node cooperation: every static graph, first rep only (keeps disk use small).
+    # degseq (added 2026-10-12): same degrees, clustering destroyed -> separates degree
+    # from clustering at node level. Its rep 0 runs on rewiring 0. ER/BA/WS added
+    # 2026-10-13: does "hubs defect" need real structure at all?
+    # Not shuffled/samedeg: there a player moves between seats, so a node is not one player.
     node_values = None
-    if job["graph"] in REAL_FILES and job["rep"] == 0:
+    if not shuffle and job["rep"] == 0:
         node_values = np.array(node_cooperation, dtype=np.float32)
     return row, node_values
 

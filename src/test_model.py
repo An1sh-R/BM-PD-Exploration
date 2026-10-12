@@ -7,6 +7,7 @@ import math
 import networkx as nx
 
 from model import CooperationModel
+from networks import same_degree_groups
 
 TOLERANCE = 1e-9
 
@@ -199,6 +200,40 @@ def test_shuffle_seats_keeps_seat_degrees():
             for other in p.neighbors:
                 assert p in other.neighbors  # links stay two-way
     assert len(centre_players) > 1  # the centre seat really changes hands
+
+
+def test_same_degree_groups_cover_every_node_once():
+    G = nx.barabasi_albert_graph(300, 2, seed=1)
+    groups = same_degree_groups(G, min_size=10)
+    all_nodes = []
+    for group in groups:
+        assert len(group) >= 10
+        all_nodes = all_nodes + group
+    assert sorted(all_nodes) == list(range(300))
+    # a star: the centre's bin has 1 node, so it is merged with the leaves
+    assert len(same_degree_groups(nx.star_graph(20), min_size=10)) == 1
+
+
+def test_same_degree_shuffle_keeps_each_players_degree():
+    # 2 seats of degree 5, 5 seats of degree 2: two groups
+    G = nx.complete_bipartite_graph(2, 5)
+    groups = same_degree_groups(G, min_size=2)
+    assert len(groups) == 2
+    model = CooperationModel(G, "bm", shuffle_seats=True, seat_groups=groups, seed=3)
+    start_degree = {}
+    for p in model.players:
+        start_degree[p] = len(p.neighbors)
+    first_seating = list(model.seating)
+    seating_changed = False
+    for _ in range(30):
+        model.step()
+        for p in model.players:
+            assert len(p.neighbors) == start_degree[p]  # never leaves its group
+            for other in p.neighbors:
+                assert p in other.neighbors  # links stay two-way
+        if model.seating != first_seating:
+            seating_changed = True
+    assert seating_changed  # players really move inside their group
 
 
 def test_bad_arguments_rejected():

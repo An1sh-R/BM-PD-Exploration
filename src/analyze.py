@@ -1,14 +1,17 @@
 """Analyse experiment 1 (run src/run.py first): BM with average payoff on real, degseq
-and shuffled versions of the 5 networks.
+and shuffled versions of the 5 networks. With --more: all 10 networks, all graph types
+(adds samedeg, ER, BA, WS; see COMPARISONS).
 
 0. Diagnostics   is each cell settled (drift)? Do repeats agree? Does it oscillate
                  (even_odd_gap: population flips C <-> D every round)?
 1. Steps         real - shuffled (fixed partners), real - degseq (structure beyond the
-                 degree sequence). Per family and per regime, never pooled over
+                 degree sequence); --more also real - samedeg, samedeg - shuffled,
+                 degseq - ER, WS - ER. Per family and per regime, never pooled over
                  families (families with opposite signs cancel out). Paired by seed.
                  95% CI over independent units: reps, except with degseq, where reps r and
                  r+5 ran on the same rewiring -> unit = rewiring (n = 5).
-2. Node level    per-node cooperation vs degree and local clustering (real graphs, rep 0)
+2. Node level    per-node cooperation vs degree and local clustering (rep 0; real graphs,
+                 --more also degseq, ER, BA, WS)
 
 Regimes (a = A/b): "a=0" nobody is ever unhappy (payoff >= 0 = A); "A<=1" cooperators
 can be satisfied; "A>1" a cooperator never reaches A (max cooperator payoff = 1);
@@ -16,7 +19,7 @@ can be satisfied; "A>1" a cooperator never reaches A (max cooperator payoff = 1)
 Only A<=1 and A>1 are shown in the plots. With the cutoff at 0.8, A>1 exists only
 for b >= 1.5 (a = 0.7 at b = 1.5; a = 0.6, 0.7 at b = 1.7, 2.0).
 
-Run from project root:  python src/analyze.py   (or --test for the test sweep)
+Run from project root:  python src/analyze.py   (--test: test sweep, --more: the 5 added networks)
 Writes results/<name>_*.csv and results/<name>_*.png
 """
 import os
@@ -33,7 +36,14 @@ from scipy import stats
 from networks import N_REWIRINGS, REAL_FILES, RESULTS_DIR, load_graph
 
 TEST = "--test" in sys.argv
-NAME = "sweep_test" if TEST else "sweep"
+# --more: experiment 1 + run.py --more together (all 10 networks, all graph types).
+# Outputs named sweep_more_*; experiment-1 outputs (sweep_*) stay as they are.
+MORE = "--more" in sys.argv and not TEST
+NAME = "sweep"
+if TEST:
+    NAME = "sweep_test"
+elif MORE:
+    NAME = "sweep_more"
 
 DRIFT_LIMIT = 0.02  # |drift| above this: run was still moving at the end
 SPREAD_LIMIT = 0.05  # std between repeats above this: repeats end at different levels
@@ -62,6 +72,12 @@ def regime(a_fraction, b):
 def load_bm_runs():
     """All runs, beta and a_fraction as numbers, plus a regime column."""
     runs = pd.read_csv(out_path("_runs.csv"), dtype={"beta": str, "a_fraction": str})
+    if MORE:
+        # experiment-1 rows give the original 5 networks' real/degseq/shuffled
+        first = pd.read_csv(os.path.join(RESULTS_DIR, "sweep_runs.csv"),
+                            dtype={"beta": str, "a_fraction": str})
+        runs = pd.concat([first, runs], ignore_index=True)
+        assert runs["run_id"].is_unique, "same run in both CSVs"
     bm = runs[runs["agent"] == "bm"].copy()
     bm["beta"] = bm["beta"].astype(float)
     bm["a_fraction"] = bm["a_fraction"].astype(float)
@@ -157,8 +173,16 @@ def diagnostics(bm):
 
 # ---- 1. steps: real/shuffled, real/degseq ------------------------------------
 
+# degseq - ER and WS - ER added 2026-10-13 (run.py --more). ER/BA/WS are one graph each:
+# their CIs hold run noise only. With degseq involved, the unit is still the rewiring.
 COMPARISONS = [("partner_effect", "real", "shuffled", "real - shuffled: fixed partners"),
-               ("structure_effect", "real", "degseq", "real - degseq: structure beyond degree")]
+               # samedeg (2026-10-13): re-seated only within degree groups, so it splits
+               # real - shuffled = (real - samedeg) + (samedeg - shuffled)
+               ("pure_partner_effect", "real", "samedeg", "real - samedeg: partners only (degree kept)"),
+               ("degree_position_effect", "samedeg", "shuffled", "samedeg - shuffled: keeping one's degree"),
+               ("structure_effect", "real", "degseq", "real - degseq: structure beyond degree"),
+               ("degree_spread", "degseq", "er", "degseq - ER: degree spread"),
+               ("clustering", "ws", "er", "WS - ER: clustering + locality, near-equal degrees")]
 
 
 def steps(bm):
@@ -172,7 +196,11 @@ def steps(bm):
         if first not in wide.columns or second not in wide.columns:
             continue
         wide["difference"] = wide[first] - wide[second]
-        per_rep = wide.groupby(["family", "regime", "beta", "rep"], as_index=False)["difference"].mean()
+        # only rows where both graphs ran (e.g. no ER rows for a family yet)
+        paired = wide.dropna(subset=["difference"])
+        if len(paired) == 0:
+            continue
+        per_rep = paired.groupby(["family", "regime", "beta", "rep"], as_index=False)["difference"].mean()
         units = []
         for rep in per_rep["rep"]:
             units.append(independent_unit([first, second], rep))
@@ -224,35 +252,54 @@ def node_file_name(run_id):
 
 
 def node_level(bm):
-    """Rep 0 of the real graphs (run.py saves per-node cooperation only for those)."""
-    nodes_dir = out_path("_nodes")
+    """Rep 0 of the real and degseq graphs (run.py saves per-node cooperation only for
+    those; experiment 1 has real only). degseq has the same degrees with clustering
+    destroyed: if corr_degree is the same there, the effect is degree, not clustering."""
+    nodes_dirs = [out_path("_nodes")]
+    if MORE:
+        nodes_dirs.append(os.path.join(RESULTS_DIR, "sweep_nodes"))  # experiment-1 real graphs
     rows = []
     for family in REAL_FILES:
-        part = bm[(bm["graph"] == family) & (bm["rep"] == 0)]
-        if len(part) == 0:
-            continue
-        G = load_graph(family)
-        degrees = []
-        local_clustering = []
-        clustering_dict = nx.clustering(G)
-        for node in range(G.number_of_nodes()):
-            degrees.append(G.degree(node))
-            local_clustering.append(clustering_dict[node])
-        for _, run in part.iterrows():
-            path = os.path.join(nodes_dir, node_file_name(run["run_id"]))
-            if not os.path.exists(path):
+        for kind in ["real", "degseq", "er", "ba", "ws"]:
+            graph = family if kind == "real" else family + "_" + kind
+            part = bm[(bm["graph"] == graph) & (bm["rep"] == 0)]
+            if len(part) == 0:
                 continue
-            coop = np.load(path)
-            # Spearman: rank correlation, robust to heavy-tailed degrees
-            rows.append({"family": family, "b": run["b"], "beta": run["beta"],
-                         "a_fraction": run["a_fraction"], "regime": run["regime"],
-                         "corr_degree": stats.spearmanr(coop, degrees).statistic,
-                         "corr_clustering": stats.spearmanr(coop, local_clustering).statistic})
+            G = load_graph(part["source_graph"].iloc[0])  # degseq rep 0 = rewiring 0
+            degrees = []
+            local_clustering = []
+            clustering_dict = nx.clustering(G)
+            for node in range(G.number_of_nodes()):
+                degrees.append(G.degree(node))
+                local_clustering.append(clustering_dict[node])
+            for _, run in part.iterrows():
+                path = None
+                for nodes_dir in nodes_dirs:
+                    candidate = os.path.join(nodes_dir, node_file_name(run["run_id"]))
+                    if os.path.exists(candidate):
+                        path = candidate
+                if path is None:
+                    continue
+                coop = np.load(path)
+                # Spearman: rank correlation, robust to heavy-tailed degrees
+                rows.append({"family": family, "graph_type": kind, "b": run["b"], "beta": run["beta"],
+                             "a_fraction": run["a_fraction"], "regime": run["regime"],
+                             "corr_degree": stats.spearmanr(coop, degrees).statistic,
+                             "corr_clustering": stats.spearmanr(coop, local_clustering).statistic})
     if not rows:
         print("node level: no node files found, skipped")
         return None
     table = pd.DataFrame(rows)
     table.to_csv(out_path("_node_level.csv"), index=False)
+
+    compare = table[table["regime"] == "A<=1"].pivot_table(
+        index=["family", "beta"], columns="graph_type", values="corr_degree")
+    if len(compare.columns) > 1:
+        print()
+        print("NODE LEVEL, A<=1: Spearman(cooperation, degree) per graph type (degseq = same degrees)")
+        print(compare.round(2).to_string())
+
+    table = table[table["graph_type"] == "real"]  # figure: real graphs, as in experiment 1
 
     fig, axes = plt.subplots(2, len(SHOWN_REGIMES), figsize=(6.5 * len(SHOWN_REGIMES), 8), sharey=True)
     for c, shown in enumerate(SHOWN_REGIMES):
