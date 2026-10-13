@@ -121,6 +121,7 @@ Companion to `question.md`. Trimmed 2026-10-12 from `../Experimentation/Research
   - Checks: 2 new tests (groups cover every node once, ≥ 10; players keep their degree and do move), 18/18 pass. `check_fast_model.py` with 2 samedeg cells: exact payoff + update checks pass, 9/9 cells agree (samedeg |diff| ≤ 0.0001); the 7 old cells give the same numbers as before (Mesa full shuffle unchanged).
   - Runs on all 10 networks (original 5 too, needed for the contrast). No node files (a node is not one player).
 - **2026-10-13 — Final extension sweep:** 55 graphs × 6,000 = 330,000 runs: added 5 × (real, degseq, shuffled, samedeg, ER, BA, WS) + original 5 × (samedeg, ER, BA, WS). Original 5's real/degseq/shuffled not rerun: in `sweep_runs.csv`, reproduced bit-identically by the current code. 12 processes.
+- **2026-10-13 — Extension sweep complete.** Paused once by the user at 304,472 runs, resumed (restart skips finished runs; file ended on a full line). Checked: 330,000 unique run_ids, 55 graphs × 6,000, no missing cooperation. `analyze.py --more`: 42,000 cells, 41,937 ok, 56 still moving (scattered, ≤ 4 per graph), 7 repeats differ; 11% of cells oscillate (β ≥ 2, mostly shuffled/samedeg; as in experiment 1). Node level has no degseq column for the original 5 (experiment 1 saved real node files only). Results vs H1–H7 reported to the user; claim wording in question.md not changed yet (user decides).
 
 ## Open
 
