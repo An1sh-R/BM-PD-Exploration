@@ -1,0 +1,217 @@
+BM-PD EXTENSION SWEEP: REPORT
+2026-10-13
+
+All three experiment-1 claims hold on 5 structurally different networks, with two
+refinements. Fixed partners (C2) help on all 10, but at low beta on networks with very
+uneven degrees most of that effect is players keeping their degree. Structure beyond
+degree (C3) barely matters at beta <= 1, but at high beta clustering adds up to +0.07
+cooperation. Main regime throughout: A <= 1 (a cooperator can be satisfied); beta = 0.01
+and the dead zone (a >= 0.8) are excluded, as in experiment 1.
+
+Every number below was recomputed from the result CSVs (results/sweep_more_*,
+results/band_test.csv).
+
+
+1. WHAT WAS RUN
+---------------
+
+Same model and grid as experiment 1: weak PD (R = 1, T = b, S = P = 0), Bush-Mosteller
+learners, averaged payoffs, synchronous updates, epsilon = 0.05, p0 = 0.5.
+Grid: 12 beta (0.01-100) x 10 a (0-0.9) x 5 b (1.1-2.0) x 10 reps, 1,500 rounds,
+outcome = mean cooperation over the last 500.
+
+5 added networks (SNAP; largest component, self-loops dropped):
+
+  Network                    Kind                          N       <k>    Degree CV  Clustering  Assortativity
+  grqc (ca-GrQc)             co-authorship                 4,158    6.5   1.34       0.56        +0.64
+  astroph (ca-AstroPh)       co-authorship                17,903   22.0   1.41       0.63        +0.20
+  emaileu (email-Eu-core)    email                           986   32.6   1.14       0.41        -0.03
+  asinternet (as20000102)    Internet routers, not social  6,474    3.9   6.44       0.25        -0.18
+  gnutella (p2p-Gnutella08)  file sharing, not social      6,299    6.6   1.29       0.01        +0.04
+
+The two non-social networks are contrasts only, never counted as social networks.
+
+Graph types per network:
+  - real, degseq (same degrees, links rewired; 5 rewirings) and shuffled (players
+    re-seated at random every round), as in experiment 1.
+  - samedeg (new): players re-seated every round only among seats of about the same
+    degree (factor-2 degree bins, at least 10 seats per group). Loses partners, keeps
+    degree. Splits real - shuffled into a fixed-partner part and a keeping-one's-degree part.
+  - ER, BA, WS: same N and <k>; WS rewiring probability chosen to match the real
+    clustering. One graph each.
+
+Scale and checks: 55 new graphs x 6,000 = 330,000 runs, analysed with experiment 1's
+90,000 (70 graphs). All runs present, run IDs unique, no missing values; experiment-1
+runs reproduce bit-identically with the updated code. 41,937 of 42,000 cells settled;
+56 still moving and 7 with disagreeing repeats (at most 4 per graph). 11% of cells
+oscillate with period 2 (beta >= 2, mostly shuffled and samedeg), as in experiment 1.
+Contrast 95% CIs <= 0.0023. Hypotheses H1-H7 were written before the runs.
+
+
+2. C1: LOW-DEGREE PLAYERS COOPERATE MORE THAN HUBS
+--------------------------------------------------
+
+Holds on all 10 networks: Spearman(node cooperation, degree) is negative at every beta
+(-0.11 to -0.77), except Facebook at beta >= 10 (-0.03 to +0.11). It is strongest at
+beta = 1-2 and weakens at high beta.
+
+  Network     beta=0.1  beta=1  beta=3  beta=10  beta=100
+  Facebook     -0.57    -0.63   -0.60   -0.03    +0.11
+  LastFM       -0.65    -0.77   -0.71   -0.49    -0.41
+  Twitch       -0.57    -0.69   -0.67   -0.45    -0.37
+  Deezer       -0.68    -0.76   -0.71   -0.51    -0.43
+  GitHub       -0.48    -0.62   -0.61   -0.37    -0.28
+  grqc         -0.66    -0.75   -0.60   -0.32    -0.25
+  astroph      -0.65    -0.74   -0.70   -0.38    -0.27
+  emaileu      -0.66    -0.68   -0.61   -0.30    -0.11
+  asinternet   -0.37    -0.52   -0.46   -0.36    -0.31
+  gnutella     -0.62    -0.72   -0.71   -0.54    -0.47
+
+  Real graphs, A <= 1, mean over the regime's (a, b) cells; rep 0 only, no CIs.
+
+- Degrees alone produce it. At beta = 0.1-3 it is negative on every comparison graph:
+  degree-preserving rewiring -0.41 to -0.78 (new 5 only), BA -0.31 to -0.54,
+  ER -0.18 to -0.64, WS weakest at -0.06 to -0.44.
+- At high beta, real structure changes its size on some networks. At beta = 100:
+  astroph real -0.27 vs rewired -0.01; emaileu -0.11 vs +0.19. On asinternet, gnutella
+  and grqc the rewiring stays as negative as the real network or more.
+- A > 1 (a cooperator can never be satisfied): it reverses at high beta, up to +0.71
+  (asinternet, beta = 100). Where it first turns positive: beta = 2 emaileu, Facebook;
+  3 GitHub, Twitch, astroph; 5 Deezer, LastFM, gnutella; 10 asinternet; 20 grqc.
+  Not steady on several: positive at beta 2-3, near 0 around beta = 10, rising again
+  (astroph is negative at beta 10-30, +0.09 at 100).
+- a = 0: only a weak dip around beta = 1 (down to -0.32).
+
+Mechanism test (band test), partly supported. Proposed mechanism: with share x of
+cooperating neighbours, a cooperator earns x and is satisfied iff x >= a*b; a defector
+earns b*x and is satisfied iff x >= a. When a <= x < a*b, defecting satisfies and
+cooperating does not, and a hub's x stays near its neighbourhood mean while a
+low-degree player's x jumps around. Prediction (written before running): correlation
+clearly negative when the hubs' x is in that band, near 0 below or above it.
+Over 3,931 non-oscillating cells (rep 0, real graphs):
+
+  Hubs' x                   Median rho, per network   Cells with rho < -0.1
+  below band (x < a)        -0.32 to -0.62            77-100%
+  in band                   -0.51 to -0.82            87-100% (Facebook 66%)
+  above band (x >= a*b)     -0.03 to -0.38            31-72%
+
+The band is the most negative position on 9 of 10 networks (asinternet: band -0.51,
+below -0.52), but correlations below and above it are not near 0. The band rule
+contributes but does not explain C1 alone. It also says nothing about the A > 1
+reversal: all those cells sit below the band.
+
+
+3. C2: FIXED PARTNERS HELP, MORE AT HIGH BETA
+---------------------------------------------
+
+Holds on all 10 networks: real - shuffled is positive at every beta, from +0.006 to
++0.040 at beta = 0.1 to +0.030 to +0.108 at beta = 100. The same-degree shuffle splits
+it into fixed partners (real - samedeg) and keeping one's degree (samedeg - shuffled).
+
+              real - shuffled       real - samedeg
+  Network     beta=0.1  beta=100    beta=0.1  beta=100
+  Facebook    +0.008    +0.048      +0.007    +0.048
+  LastFM      +0.010    +0.058      +0.006    +0.052
+  Twitch      +0.021    +0.042      +0.005    +0.029
+  Deezer      +0.008    +0.052      +0.006    +0.049
+  GitHub      +0.029    +0.037      +0.004    +0.016
+  grqc        +0.006    +0.108      +0.005    +0.104
+  astroph     +0.008    +0.070      +0.006    +0.061
+  emaileu     +0.011    +0.030      +0.005    -0.009
+  asinternet  +0.040    +0.033      +0.002    +0.018
+  gnutella    +0.014    +0.035      +0.009    +0.029
+
+  Cooperation difference, A <= 1, paired by seed; 95% CIs <= 0.0023.
+
+- The growth with beta is the fixed-partner part. real - samedeg rises from
+  +0.002-0.009 at beta = 0.1 to +0.016-0.104 at beta = 100 on 9 of 10 networks.
+  Emaileu is the exception: -0.003 to -0.010 at beta >= 10.
+- At low beta on the most uneven-degree networks, most of the effect is keeping one's
+  degree. At beta = 0.1: asinternet 0.037 of 0.040, GitHub 0.025 of 0.029, Twitch 0.016
+  of 0.021. On the others it is at most 0.006.
+- Asinternet's total effect does not grow with beta (0.027-0.040 throughout); emaileu's
+  dips at beta = 2-3.
+- A > 1: all contrasts small (at most +0.042).
+- Not tested: whether BM gains more from fixed partners than imitators do.
+
+
+4. C3: STRUCTURE BEYOND THE DEGREE SEQUENCE
+-------------------------------------------
+
+Revised: structure beyond degree barely matters at beta <= 1, but at high beta
+clustering adds cooperation. At beta = 0.1-1, |real - degseq| <= 0.011 on all 10 networks.
+
+              real - degseq            real - degseq   WS - ER     degseq - ER
+  Network     max |diff|, beta 0.1-1   beta=100        beta=100    beta=1
+  Facebook    0.009                    +0.013          +0.037      +0.038
+  LastFM      0.002                    +0.015          +0.020      +0.043
+  Twitch      0.005                    +0.005          +0.011      +0.050
+  Deezer      0.001                    +0.009          +0.015      +0.033
+  GitHub      0.005                    +0.000          +0.011      +0.064
+  grqc        0.006                    +0.062          +0.070      +0.037
+  astroph     0.008                    +0.038          +0.069      +0.047
+  emaileu     0.002                    -0.011          +0.029      +0.045
+  asinternet  0.011                    -0.027          +0.024      +0.051
+  gnutella    0.007                    -0.007          +0.001      +0.036
+
+  A <= 1. ER, BA and WS are one graph each, so their CIs hold run noise only.
+
+- Clustering helps at high beta. WS - ER is within +/-0.008 at beta <= 1 and +0.011 to
+  +0.070 at beta = 100, except gnutella (about 0; its WS graph is near-random). It is
+  largest on the two co-authorship networks (clustering 0.56, 0.63), which also have
+  the largest real - degseq (+0.062, +0.038).
+- Asinternet's real network cooperates less than its rewirings at high beta (-0.027).
+  Not predicted.
+- Uneven degrees help: degseq - ER is +0.016 to +0.066 on all 10 networks at every
+  beta, largest on GitHub.
+- At low beta this matches earlier reports that reinforcement learning is largely
+  insensitive to topology (Cimini & Sanchez 2014; Amaral et al. 2016). Shuffled seats
+  do matter (C2); rewiring links at fixed degrees barely does at low beta.
+
+
+5. HYPOTHESES: PREDICTION VS OUTCOME
+------------------------------------
+
+Five hold, H1 holds with wrong details, H6 holds only partly. All were written before
+the runs (H1-H3 on 2026-10-12, H4-H7 on 2026-10-13).
+
+H1 (C1)  Prediction: rho < 0 on all 5 new networks; weakest on grqc; reverses at A > 1,
+         beta >= 3.
+         Outcome: holds, details wrong: emaileu is weakest at high beta, not grqc;
+         reversal starts at beta 2-20 by network.
+H2 (C2)  Prediction: real - shuffled > 0 on the 5 new, grows with beta.
+         Outcome: holds; asinternet flat, emaileu dips at beta 2-3.
+H3 (C3)  Prediction: |real - degseq| <= 0.01 at beta <= 1; may exceed 0.024 at high beta
+         on grqc, astroph.
+         Outcome: holds (asinternet 0.011, borderline); grqc +0.062, astroph +0.040 at
+         high beta. Not predicted: asinternet -0.027.
+H4 (C3)  Prediction: degseq - ER > 0 on all 10, largest on asinternet, GitHub.
+         Outcome: holds; GitHub largest, asinternet not above the rest.
+H5 (C3)  Prediction: WS - ER about 0 at low beta, positive at high beta.
+         Outcome: holds; gnutella about 0 as expected.
+H6 (C1)  Prediction: rho < 0 on degseq and BA as on real; weaker on ER, WS.
+         Outcome: partly: also clearly negative on ER; only WS clearly weaker.
+H7 (C2)  Prediction: real - samedeg > 0 on all 10, grows with beta.
+         Outcome: holds on 9 of 10; emaileu negative at beta >= 10.
+
+
+6. CAVEATS AND NEXT STEPS
+-------------------------
+
+- Node-level correlations (C1, band test) use rep 0 only and have no CIs; emaileu's top
+  1% is about 10 nodes. The original 5 networks have no node files for their rewirings
+  (experiment 1 saved real graphs only).
+- ER, BA and WS are one graph each.
+- Asinternet and gnutella are not social networks: contrasts only.
+- In the same-degree shuffle a typical player stays within about +/-20% of its group's
+  mean degree, but the top group holds the 10 largest hubs, which can differ a lot
+  (GitHub degrees 1,568-9,458).
+- Claims are about the model on real network structure, not about real people.
+
+Next, for the C1 mechanism: (1) one learner whose k neighbours cooperate with a fixed
+probability, to see whether degree alone produces hub defection; (2) a predicted
+cooperation-by-degree curve from that, compared with the simulated one. Neither has
+been run.
+
+Code, data and full tables: https://github.com/An1sh-R/BM-PD-Exploration
+(README.md, ResearchQ/question.md, results/sweep_more_*).

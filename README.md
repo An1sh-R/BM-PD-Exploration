@@ -116,8 +116,9 @@ cooperation with its degree, real graphs):
 | Deezer | −0.68 | −0.76 | −0.71 | −0.51 | −0.43 |
 | GitHub | −0.48 | −0.62 | −0.61 | −0.37 | −0.28 |
 
-Holds in `A<=1` (except Facebook at β ≥ 10). Reverses in `A>1` at β ≥ 3 (mean +0.05 to
-+0.38: hubs cooperate more). No pattern at a = 0. Likely mechanism: a hub's averaged
+Holds in `A<=1` (except Facebook at β ≥ 10). Reverses in `A>1` at high β (hubs cooperate more; first
+positive at β = 2 Facebook, 3 GitHub and Twitch, 5 Deezer and LastFM). At a = 0 only a dip
+around β = 1 (to −0.30). Likely mechanism: a hub's averaged
 payoff is close to the population average; at these aspirations cooperating then pays
 a little below A (unsatisfied) and defecting pays b times more (satisfied), so hubs
 drift to D. A low-degree player with one cooperating partner gets payoff 1 ≥ A and keeps

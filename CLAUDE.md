@@ -24,7 +24,7 @@ Scope: build on the experiment-1 claims (hubs defect, fixed partners, structure 
 
 ```
 BM-PD-Exploration/
-  CLAUDE.md, README.md, requirements.txt
+  CLAUDE.md, README.md, requirements.txt, report_extension.txt (extension report for the mentor)
   ResearchQ/        question.md (question, claims, hypotheses), design.md (decisions, history)
   data/             real edge lists (10) + synthetic/ (rewirings, ER/BA/WS; generated once, fixed)
   src/              ALL code, flat

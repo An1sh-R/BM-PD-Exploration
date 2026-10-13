@@ -23,8 +23,8 @@ Stated with their conditions. First written 2026-10-10 from experiment 1 (5 netw
   - Wording: "in the model, on real network structure". Not a claim about real people.
 - **C2. Fixed partners help BM, more at high β.** real − shuffled > 0 on all 10 networks (A ≤ 1): +0.006 to +0.040 at β = 0.1 → +0.030 to +0.108 at β = 100. Growth with β not reported before as far as found (Ezaki & Masuda 2017 used one β).
   - Split by the same-degree shuffle: real − shuffled = (real − samedeg: fixed partners) + (samedeg − shuffled: keeping one's degree).
-  - The growth with β is the fixed-partner part: real − samedeg goes from ≤ +0.003 at β = 0.01 to +0.016 to +0.104 at high β, on 9 of 10 networks (emaileu: −0.010 to −0.003 at β ≥ 10).
-  - At low β on networks with very uneven degrees, most of real − shuffled is keeping one's degree (β = 0.1: asinternet 0.037 of 0.040, GitHub 0.025 of 0.029, Twitch 0.016 of 0.021). Exceptions to growth: asinternet flat (~0.033); emaileu dips at β 2–3.
+  - The growth with β is the fixed-partner part: real − samedeg goes from +0.002 to +0.009 at β = 0.1 to +0.016 to +0.104 at β = 100, on 9 of 10 networks (emaileu: −0.010 to −0.003 at β ≥ 10).
+  - At low β on networks with very uneven degrees, most of real − shuffled is keeping one's degree (β = 0.1: asinternet 0.037 of 0.040, GitHub 0.025 of 0.029, Twitch 0.016 of 0.021). Exceptions to growth: asinternet flat (0.027–0.040); emaileu dips at β 2–3.
   - "More than imitators" is not tested here: do not claim it.
 - **C3. Beyond the degree sequence, structure barely matters at β ≤ 1; at high β, clustering adds cooperation.** real − degseq: |diff| ≤ 0.011 at β ≤ 1 on all 10. High β: co-authorship networks +0.040 (astroph) to +0.062 (grqc), Facebook up to +0.024, others −0.011 to +0.016; asinternet −0.027 (real below its rewiring).
   - Clustering: WS − ER ≈ 0 at β ≤ 1 (≥ −0.008), +0.011 to +0.070 at high β, largest on grqc and astroph (clustering 0.56, 0.63), matching their real − degseq. Gnutella ≈ 0 (no clustering).
