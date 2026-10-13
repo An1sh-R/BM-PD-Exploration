@@ -37,6 +37,7 @@ BM-PD-Exploration/
     pilot.py          coarse beta x A x b scan on LastFM (chose the grid)
     run.py            the sweep (--more: 5 added networks, --test: tiny)
     analyze.py        diagnostics, real-shuffled, real-degseq, node level
+    band_test.py      C1 mechanism test 1: hub defection vs the band rule -> results/band_test.csv
     plot_graphs.py    network drawings -> graphs/
   graphs/           one png per original real graph
   results/          sweep_runs.csv (exp 1), sweep_more_runs.csv (added networks + all samedeg/ER/BA/WS), tables, figures
