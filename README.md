@@ -208,7 +208,8 @@ Negative on all 10 networks. Also negative on every random graph at β ≤ 3 (BA
 −0.54, ER −0.11 to −0.64, WS weakest −0.03 to −0.44): degrees alone are enough, as the
 proposed mechanism says. At high β real structure changes its size on some networks
 (β = 100: astroph real −0.27 vs degseq −0.01; emaileu −0.11 vs +0.19). In A > 1 it
-reverses at high β (hubs cooperate more), from β ≈ 3–20 depending on the network.
+reverses at high β (hubs cooperate more), from β ≈ 3–20 depending on the network; on
+several networks not steadily (positive at β 2–3, near 0 around β = 10, rising again).
 Node level: rep 0 only, no CIs.
 
 **Diagnostics:** 41,937 of 42,000 cells ok; 56 still moving and 7 with repeats that differ

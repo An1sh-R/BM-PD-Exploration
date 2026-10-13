@@ -16,7 +16,7 @@ Weak PD (R = 1, T = b, S = P = 0) played by Bush–Mosteller (BM) aspiration lea
 
 Stated with their conditions. First written 2026-10-10 from experiment 1 (5 networks); revised 2026-10-13 after the extension sweep (H1–H7 outcomes below). A ≤ 1 = a cooperator can be satisfied (main regime).
 
-- **C1. Low-degree players cooperate more than hubs.** A ≤ 1: Spearman(node cooperation, degree) < 0 on all 10 networks at every β (−0.11 to −0.78; LastFM: top-1% hubs 0.17 vs degree-1 nodes 0.45). Strongest at β ≈ 1–2, weaker at high β. Exception: Facebook at β ≥ 10 (−0.03 to +0.11). A > 1: reverses (hubs cooperate more) at high β, from β ≈ 3–20 depending on the network (up to +0.71); barely on astroph. a = 0: weak, only around β ≈ 1 (≥ −0.32).
+- **C1. Low-degree players cooperate more than hubs.** A ≤ 1: Spearman(node cooperation, degree) < 0 on all 10 networks at every β (−0.11 to −0.78; LastFM: top-1% hubs 0.17 vs degree-1 nodes 0.45). Strongest at β ≈ 1–2, weaker at high β. Exception: Facebook at β ≥ 10 (−0.03 to +0.11). A > 1: reverses (hubs cooperate more) at high β, from β ≈ 3–20 depending on the network (first positive: β 2–3 emaileu, Facebook, GitHub, Twitch; 5 Deezer, LastFM, gnutella; 10 asinternet; 20 grqc; up to +0.71). Not steady on several: positive at β 2–3, near 0 around β = 10, rising again. Astroph: +0.14 at β = 3, negative at 10–30, +0.09 at 100. a = 0: weak, only around β ≈ 1 (≥ −0.32).
   - Degrees alone produce it: negative on every degree-preserving rewiring, BA (−0.25 to −0.54), ER (−0.11 to −0.64) and WS (weakest, −0.03 to −0.44) at β ≤ 3. Fits the mechanism below, which uses only a node's degree.
   - At high β real structure changes its size on some networks (astroph real −0.27 vs degseq −0.01; emaileu −0.11 vs +0.19 at β = 100); on asinternet, gnutella real ≈ degseq. Node level = rep 0 only, no CIs.
   - Proposed mechanism: with averaged payoffs and a share x of cooperating neighbours, a cooperator earns x (satisfied iff x ≥ a·b), a defector b·x (satisfied iff x ≥ a). A hub sees x ≈ its neighbourhood's mean. If a ≤ x < a·b, cooperating disappoints and defecting satisfies → hubs drift to D. A degree-1 player with one cooperating partner gets 1 ≥ A and stays C. Band test (2026-10-13, `src/band_test.py`): partly supported. Hubs defect most when their x is in the band, but also below and above it, so the band alone does not explain C1.
@@ -64,7 +64,7 @@ Added 2026-10-13 (ER/BA/WS for all 10 networks), before those runs:
 
 ### Outcomes (sweep complete 2026-10-13)
 
-- H1: holds (ρ < 0 on all 5 new networks). Wrong on details: grqc is not the weakest (emaileu is, at high β); the A > 1 reversal needs higher β than 3 on most networks, barely seen on astroph.
+- H1: holds (ρ < 0 on all 5 new networks). Wrong on details: grqc is not the weakest (emaileu is, at high β); the A > 1 reversal starts at β 2–20 depending on the network, not at β ≥ 3 everywhere (new 5: emaileu 2, astroph 3 but not steady, gnutella 5, asinternet 10, grqc 20).
 - H2: holds; asinternet flat with β, emaileu dips at β 2–3.
 - H3: holds at β ≤ 1 (asinternet 0.011, borderline). High β exceeds 0.024 on grqc (+0.062) and astroph (+0.040) as predicted. Not predicted: asinternet −0.027.
 - H4: holds on all 10. Largest on GitHub; asinternet not above the rest.
