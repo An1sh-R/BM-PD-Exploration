@@ -12,20 +12,26 @@ Weak PD (R = 1, T = b, S = P = 0) played by Bush–Mosteller (BM) aspiration lea
 - Ezaki et al. 2016 (lattice): β changes BM cooperation. Ezaki & Masuda 2017 (rings, one β): fixed partners help BM, effect depends on degree k and b/c.
 - Earlier work finds RL cooperation largely insensitive to topology (Cimini & Sánchez 2014; Amaral et al. 2016). Here: real networks, node level, across β and A.
 
-## Claims from experiment 1 (5 networks, 90,000 runs; numbers in README.md)
+## Claims (experiment 1 + extension: 10 networks, 420,000 runs; numbers in README.md)
 
-Stated with their conditions (checked 2026-10-10). A ≤ 1 = a cooperator can be satisfied (main regime).
+Stated with their conditions. First written 2026-10-10 from experiment 1 (5 networks); revised 2026-10-13 after the extension sweep (H1–H7 outcomes below). A ≤ 1 = a cooperator can be satisfied (main regime).
 
-- **C1. Low-degree players cooperate more than hubs.** A ≤ 1: Spearman(node cooperation, degree) −0.28 to −0.77 on all 5 networks (LastFM: top-1% hubs 0.17 vs degree-1 nodes 0.45). Exceptions: Facebook at β ≥ 10 (~0); reverses at A > 1, β ≥ 3 (+0.05 to +0.38); no pattern at a = 0.
+- **C1. Low-degree players cooperate more than hubs.** A ≤ 1: Spearman(node cooperation, degree) < 0 on all 10 networks at every β (−0.11 to −0.78; LastFM: top-1% hubs 0.17 vs degree-1 nodes 0.45). Strongest at β ≈ 1–2, weaker at high β. Exception: Facebook at β ≥ 10 (−0.03 to +0.11). A > 1: reverses (hubs cooperate more) at high β, from β ≈ 3–20 depending on the network (up to +0.71); barely on astroph. a = 0: weak, only around β ≈ 1 (≥ −0.32).
+  - Degrees alone produce it: negative on every degree-preserving rewiring, BA (−0.25 to −0.54), ER (−0.11 to −0.64) and WS (weakest, −0.03 to −0.44) at β ≤ 3. Fits the mechanism below, which uses only a node's degree.
+  - At high β real structure changes its size on some networks (astroph real −0.27 vs degseq −0.01; emaileu −0.11 vs +0.19 at β = 100); on asinternet, gnutella real ≈ degseq. Node level = rep 0 only, no CIs.
   - Proposed mechanism: with averaged payoffs and a share x of cooperating neighbours, a cooperator earns x (satisfied iff x ≥ a·b), a defector b·x (satisfied iff x ≥ a). A hub sees x ≈ its neighbourhood's mean. If a ≤ x < a·b, cooperating disappoints and defecting satisfies → hubs drift to D. A degree-1 player with one cooperating partner gets 1 ≥ A and stays C. Not yet tested directly.
   - Wording: "in the model, on real network structure". Not a claim about real people.
-  - Open: local clustering is higher at low-degree nodes, so degree and clustering are not yet separated.
-- **C2. Fixed partners help BM, more at high β.** real − shuffled: +0.008 to +0.029 at β = 0.1 → +0.037 to +0.058 at β = 100, all 5 networks (A ≤ 1). Growth with β not reported before as far as found (Ezaki & Masuda 2017 used one β).
-  - Caveat: shuffling seats also removes each player's fixed degree, so part may be a degree effect. Tested in the extension by the same-degree shuffle (H7).
+- **C2. Fixed partners help BM, more at high β.** real − shuffled > 0 on all 10 networks (A ≤ 1): +0.006 to +0.040 at β = 0.1 → +0.030 to +0.108 at β = 100. Growth with β not reported before as far as found (Ezaki & Masuda 2017 used one β).
+  - Split by the same-degree shuffle: real − shuffled = (real − samedeg: fixed partners) + (samedeg − shuffled: keeping one's degree).
+  - The growth with β is the fixed-partner part: real − samedeg goes from ≤ +0.003 at β = 0.01 to +0.016 to +0.104 at high β, on 9 of 10 networks (emaileu: −0.010 to −0.003 at β ≥ 10).
+  - At low β on networks with very uneven degrees, most of real − shuffled is keeping one's degree (β = 0.1: asinternet 0.037 of 0.040, GitHub 0.025 of 0.029, Twitch 0.016 of 0.021). Exceptions to growth: asinternet flat (~0.033); emaileu dips at β 2–3.
   - "More than imitators" is not tested here: do not claim it.
-- **C3. Structure beyond the degree sequence matters little.** real − degseq: |diff| ≤ 0.009 at β ≤ 1, ≤ +0.024 at β ≥ 3. Fits Cimini & Sánchez 2014, Amaral et al. 2016 (confirmation on real networks, not new alone).
-  - Not "shuffling doesn't matter": shuffled seats do matter (C2). Rewiring links at fixed degrees barely does.
-  - "Degree spread matters" (degseq − ER): not in experiment 1; measured in the extension (H4).
+- **C3. Beyond the degree sequence, structure barely matters at β ≤ 1; at high β, clustering adds cooperation.** real − degseq: |diff| ≤ 0.011 at β ≤ 1 on all 10. High β: co-authorship networks +0.040 (astroph) to +0.062 (grqc), Facebook up to +0.024, others −0.011 to +0.016; asinternet −0.027 (real below its rewiring).
+  - Clustering: WS − ER ≈ 0 at β ≤ 1 (≥ −0.008), +0.011 to +0.070 at high β, largest on grqc and astroph (clustering 0.56, 0.63), matching their real − degseq. Gnutella ≈ 0 (no clustering).
+  - Degree spread helps: degseq − ER +0.016 to +0.066 on all 10 at every β (largest GitHub).
+  - Fits Cimini & Sánchez 2014, Amaral et al. 2016 at low β only.
+  - Not "shuffling doesn't matter": shuffled seats do matter (C2). Rewiring links at fixed degrees barely does at low β.
+  - ER/BA/WS = one graph each: CIs hold run noise only.
 
 ## Extension: 5 more networks (added 2026-10-12)
 
@@ -55,6 +61,16 @@ Added 2026-10-13 (ER/BA/WS for all 10 networks), before those runs:
 - **H5 (C3, clustering).** WS − ER ≈ 0 at low β, positive at high β (v2 partial: +0.01–0.04). Uninformative for gnutella (its WS is near-random).
 - **H7 (C2, partners vs degree position; samedeg added 2026-10-13, before its runs).** real − samedeg > 0 in A ≤ 1 on all 10 networks and grows with β (fixed partners matter even when each player keeps its degree). No prediction for samedeg − shuffled's size; its share of real − shuffled is the answer to the C2 caveat.
 - **H6 (C1, needs only degrees).** A ≤ 1: Spearman(cooperation, degree) < 0 on degseq and BA as on real (the mechanism uses only a node's degree), weaker on ER and WS (narrow degree range).
+
+### Outcomes (sweep complete 2026-10-13)
+
+- H1: holds (ρ < 0 on all 5 new networks). Wrong on details: grqc is not the weakest (emaileu is, at high β); the A > 1 reversal needs higher β than 3 on most networks, barely seen on astroph.
+- H2: holds; asinternet flat with β, emaileu dips at β 2–3.
+- H3: holds at β ≤ 1 (asinternet 0.011, borderline). High β exceeds 0.024 on grqc (+0.062) and astroph (+0.040) as predicted. Not predicted: asinternet −0.027.
+- H4: holds on all 10. Largest on GitHub; asinternet not above the rest.
+- H5: holds; gnutella ≈ 0 as expected.
+- H6: partly. Negative on degseq and BA, but also on ER; only WS clearly weaker. At high β degseq differs from real on astroph and emaileu.
+- H7: holds on 9 of 10 (emaileu slightly negative at β ≥ 10). samedeg − shuffled: most of real − shuffled at low β on asinternet, GitHub, Twitch.
 
 ## Reporting rules
 

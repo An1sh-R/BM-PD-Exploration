@@ -1,8 +1,10 @@
-# Experiment 1: Bush–Mosteller learners on real social networks
+# Bush–Mosteller learners on real networks
 
-Weak Prisoner's Dilemma played by reinforcement learners (Bush–Mosteller, BM) on 5 real
-social networks. Question: how much do fixed partners and network structure beyond the
+Weak Prisoner's Dilemma played by reinforcement learners (Bush–Mosteller, BM) on real
+networks. Question: how much do fixed partners and network structure beyond the
 degree sequence change cooperation, and how does that depend on learning sensitivity β?
+Experiment 1 (below) used 5 networks; the extension (further down) adds 5 more and
+same-degree shuffle, ER, BA and WS versions of all 10.
 
 ## What was run
 
@@ -126,9 +128,95 @@ is not read separately.
 cells oscillate with period 2 (whole population flips C ↔ D each round; β ≥ 2, a ≥ 0.3);
 their window mean is still reported.
 
+## Extension: 10 networks, 7 graph types (2026-10-13)
+
+Do the three results hold on networks unlike the first 5, and which part of each comes
+from degrees alone? Hypotheses (H1–H7) were written before the runs (`ResearchQ/question.md`).
+
+**5 added networks** (SNAP):
+
+| Network | Kind | N | Edges | ⟨k⟩ | Max degree | Degree CV | Clustering | Assortativity |
+|---|---|---|---|---|---|---|---|---|
+| grqc (ca-GrQc) | co-authorship | 4,158 | 13,422 | 6.5 | 81 | 1.34 | 0.56 | +0.64 |
+| astroph (ca-AstroPh) | co-authorship | 17,903 | 196,972 | 22.0 | 504 | 1.41 | 0.63 | +0.20 |
+| emaileu (email-Eu-core) | email | 986 | 16,064 | 32.6 | 345 | 1.14 | 0.41 | −0.03 |
+| asinternet (as20000102) | Internet routers, **not social** | 6,474 | 12,572 | 3.9 | 1,458 | 6.44 | 0.25 | −0.18 |
+| gnutella (p2p-Gnutella08) | file sharing, **not social** | 6,299 | 20,776 | 6.6 | 97 | 1.29 | 0.01 | +0.04 |
+
+**Graph types** (new ones for all 10 networks):
+
+- `samedeg`: like `shuffled`, but players are re-seated only among seats of about the same
+  degree (factor-2 degree bins, ≥ 10 seats per group). Loses partners, keeps degree. Splits
+  real − shuffled into real − samedeg (fixed partners) + samedeg − shuffled (keeping one's degree).
+- `er`, `ba`, `ws`: Erdős–Rényi, Barabási–Albert, Watts–Strogatz with the same N and ⟨k⟩
+  (WS: rewiring probability chosen to match the real clustering). One graph each.
+
+Same grid as experiment 1. New runs: 55 graphs × 6,000 = **330,000 runs**
+(`results/sweep_more_runs.csv`); analysed together with experiment 1 (`python src/analyze.py --more`
+→ `results/sweep_more_*`). Node files saved for every static graph (rep 0).
+
+**1. Fixed partners (real − shuffled), and the part that is partners only (real − samedeg)**, A ≤ 1:
+
+| Network | real − shuffled β = 0.1 | β = 1 | β = 100 | real − samedeg β = 0.1 | β = 1 | β = 100 |
+|---|---|---|---|---|---|---|
+| Facebook | +0.008 | +0.010 | +0.048 | +0.007 | +0.010 | +0.048 |
+| LastFM | +0.010 | +0.015 | +0.058 | +0.006 | +0.017 | +0.052 |
+| Twitch | +0.021 | +0.020 | +0.042 | +0.005 | +0.011 | +0.029 |
+| Deezer | +0.008 | +0.012 | +0.052 | +0.006 | +0.015 | +0.049 |
+| GitHub | +0.029 | +0.026 | +0.037 | +0.004 | +0.009 | +0.016 |
+| grqc | +0.006 | +0.020 | +0.108 | +0.005 | +0.023 | +0.104 |
+| astroph | +0.008 | +0.013 | +0.070 | +0.006 | +0.014 | +0.061 |
+| emaileu | +0.011 | +0.009 | +0.030 | +0.005 | +0.007 | −0.009 |
+| asinternet | +0.040 | +0.030 | +0.033 | +0.002 | +0.009 | +0.018 |
+| gnutella | +0.014 | +0.009 | +0.035 | +0.009 | +0.011 | +0.029 |
+
+Fixed partners help on all 10. The growth with β is the partners-only part (9 of 10;
+emaileu slightly negative at β ≥ 10). At low β on the networks with the most uneven degrees
+(asinternet, GitHub, Twitch), most of real − shuffled comes from keeping one's degree.
+
+**2. Structure beyond degree, clustering, degree spread**, A ≤ 1:
+
+| Network | real − degseq β ≤ 1 (max \|diff\|) | real − degseq β = 100 | WS − ER β = 100 | degseq − ER β = 1 |
+|---|---|---|---|---|
+| Facebook | 0.009 | +0.013 | +0.037 | +0.038 |
+| LastFM | 0.002 | +0.015 | +0.020 | +0.043 |
+| Twitch | 0.005 | +0.005 | +0.011 | +0.050 |
+| Deezer | 0.001 | +0.009 | +0.015 | +0.033 |
+| GitHub | 0.005 | +0.000 | +0.011 | +0.064 |
+| grqc | 0.006 | +0.062 | +0.070 | +0.037 |
+| astroph | 0.008 | +0.038 | +0.069 | +0.047 |
+| emaileu | 0.002 | −0.011 | +0.029 | +0.045 |
+| asinternet | 0.011 | −0.027 | +0.024 | +0.051 |
+| gnutella | 0.007 | −0.007 | +0.001 | +0.036 |
+
+At β ≤ 1, structure beyond degree barely matters anywhere. At high β, clustering adds
+cooperation (WS − ER), most on the co-authorship networks (clustering 0.56–0.63), which
+is also where real − degseq is largest. Degree spread helps on all 10 at every β
+(degseq − ER +0.016 to +0.066). ER/BA/WS are one graph each: CIs hold run noise only.
+
+**3. Hubs defect** (Spearman(cooperation, degree), real graphs, A ≤ 1):
+
+| Network | β = 0.1 | β = 1 | β = 3 | β = 10 | β = 100 |
+|---|---|---|---|---|---|
+| grqc | −0.66 | −0.75 | −0.60 | −0.32 | −0.25 |
+| astroph | −0.65 | −0.74 | −0.70 | −0.38 | −0.27 |
+| emaileu | −0.66 | −0.68 | −0.61 | −0.30 | −0.11 |
+| asinternet | −0.37 | −0.52 | −0.46 | −0.36 | −0.31 |
+| gnutella | −0.62 | −0.72 | −0.71 | −0.54 | −0.47 |
+
+Negative on all 10 networks. Also negative on every random graph at β ≤ 3 (BA −0.25 to
+−0.54, ER −0.11 to −0.64, WS weakest −0.03 to −0.44): degrees alone are enough, as the
+proposed mechanism says. At high β real structure changes its size on some networks
+(β = 100: astroph real −0.27 vs degseq −0.01; emaileu −0.11 vs +0.19). In A > 1 it
+reverses at high β (hubs cooperate more), from β ≈ 3–20 depending on the network.
+Node level: rep 0 only, no CIs.
+
+**Diagnostics:** 41,937 of 42,000 cells ok; 56 still moving and 7 with repeats that differ
+(≤ 4 per graph); 11 % oscillate (β ≥ 2, mostly shuffled/samedeg).
+
 ## Checks
 
-- `src/test_model.py`: unit checks of the Mesa reference model (16 checks).
+- `src/test_model.py`: unit checks of the Mesa reference model (18 checks).
 - `src/check_fast_model.py`: the numpy engine used for the sweep (`fast_model.py`) against
   the Mesa reference (`model.py`): exact update rules + 20-seed run comparison
   (`results/fast_model_check.csv`).
@@ -148,16 +236,16 @@ their window mean is still reported.
 ## Layout and how to run
 
 ```
-data/               5 real edge lists; data/synthetic/ = rewirings (generated once, fixed)
+data/               10 real edge lists; data/synthetic/ = rewirings, ER/BA/WS (generated once, fixed)
 src/
   networks.py       load + clean graphs, build rewirings, topology table
   model.py          Mesa reference model (readable version of the rules)
   fast_model.py     numpy version of BM used by run.py (~10-20x faster)
   check_fast_model.py, test_model.py, validate_bm.py, pilot.py   checks (see above)
-  run.py            the sweep -> results/sweep_runs.csv
+  run.py            the sweep -> results/sweep_runs.csv (--more: extension -> sweep_more_runs.csv)
   analyze.py        diagnostics, contrasts, node level -> results/sweep_*
   plot_graphs.py    network drawings -> graphs/
-results/            sweep_runs.csv (all 90,000 runs), tables and figures
+results/            sweep_runs.csv (90,000 runs), sweep_more_runs.csv (330,000 runs), tables and figures
 ```
 
 Python 3.12+ (tested on 3.14). From the project root:
