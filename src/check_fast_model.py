@@ -38,6 +38,15 @@ CELLS = [
     (B, 0.3, 0.5, "samedeg"),
     (B, 10.0, 0.4, "samedeg"),
 ]
+# desynchronised rounds (added 2026-10-13): each player updates with prob 0.5 per round.
+# Same layout as CELLS; run with update_fraction = DESYNC_FRACTION.
+DESYNC_FRACTION = 0.5
+DESYNC_CELLS = [
+    (B, 1.0, 0.5, False),
+    (B, 10.0, 0.3, False),
+    (B, 100.0, 0.3, True),
+    (B, 10.0, 0.4, "samedeg"),
+]
 
 
 def check_payoffs(G, A, degree):
@@ -86,11 +95,24 @@ def check_bm_update(G):
     print("exact check: BM update matches on", n_checked, "player updates")
 
 
-def compare_runs(G, A, degree):
+def check_update_fraction_one(A, degree):
+    """update_fraction = 1 must be the old synchronous model exactly: same random
+    numbers, same run (so the existing sweeps stay reproducible)."""
+    for shuffled in [False, True]:
+        default_curve, default_p, _ = run_bm(A, degree, B, 10.0, 0.45, EPSILON, 100,
+                                             shuffle_seats=shuffled, seed=3)
+        explicit_curve, explicit_p, _ = run_bm(A, degree, B, 10.0, 0.45, EPSILON, 100,
+                                               shuffle_seats=shuffled, update_fraction=1.0, seed=3)
+        assert np.array_equal(default_curve, explicit_curve), "update_fraction=1 changed the run"
+        assert np.array_equal(default_p, explicit_p), "update_fraction=1 changed the run"
+    print("exact check: update_fraction = 1 gives bit-identical runs")
+
+
+def compare_runs(G, A, degree, cells, update_fraction=1.0):
     rows = []
     record_from = STEPS - WINDOW
     groups = same_degree_groups(G)
-    for b, beta, a_fraction, shuffled in CELLS:
+    for b, beta, a_fraction, shuffled in cells:
         aspiration = round(a_fraction * b, 6)
         seat_groups = None
         if shuffled == "samedeg":
@@ -100,20 +122,23 @@ def compare_runs(G, A, degree):
         for seed in range(SEEDS):
             model = CooperationModel(G, "bm", b=b, beta=beta, aspiration=aspiration,
                                      epsilon=EPSILON, shuffle_seats=bool(shuffled),
-                                     seat_groups=seat_groups, seed=seed)
+                                     seat_groups=seat_groups, update_fraction=update_fraction,
+                                     seed=seed)
             model.run(STEPS)
             curve = model.datacollector.model_vars["cooperation"]
             mesa_values.append(np.mean(curve[record_from:]))
 
             curve, p, nodes = run_bm(A, degree, b, beta, aspiration, EPSILON, STEPS,
                                      record_from=record_from, shuffle_seats=bool(shuffled),
-                                     seat_groups=seat_groups, seed=seed)
+                                     seat_groups=seat_groups, update_fraction=update_fraction,
+                                     seed=seed)
             fast_values.append(curve[record_from:].mean())
 
         p_value = ttest_ind(mesa_values, fast_values, equal_var=False).pvalue
         if np.isnan(p_value):
             p_value = 1.0  # both versions gave identical constant values
         row = {"b": b, "beta": beta, "a_fraction": a_fraction, "shuffled": shuffled,
+               "update_fraction": update_fraction,
                "mesa_mean": round(float(np.mean(mesa_values)), 4),
                "fast_mean": round(float(np.mean(fast_values)), 4),
                "mesa_std": round(float(np.std(mesa_values)), 4),
@@ -131,9 +156,12 @@ def main():
     A, degree = neighbour_matrix(G)
     check_payoffs(G, A, degree)
     check_bm_update(G)
+    check_update_fraction_one(A, degree)
 
     print(f"statistical check: {GRAPH}, {STEPS} steps, {SEEDS} seeds per cell")
-    rows = compare_runs(G, A, degree)
+    rows = compare_runs(G, A, degree, CELLS)
+    print(f"desynchronised cells: update_fraction = {DESYNC_FRACTION}")
+    rows = rows + compare_runs(G, A, degree, DESYNC_CELLS, update_fraction=DESYNC_FRACTION)
 
     path = os.path.join(RESULTS_DIR, "fast_model_check.csv")
     with open(path, "w", newline="") as f:

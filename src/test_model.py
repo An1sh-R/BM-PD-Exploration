@@ -236,9 +236,36 @@ def test_same_degree_shuffle_keeps_each_players_degree():
     assert seating_changed  # players really move inside their group
 
 
+def test_update_fraction_half_updates_about_half():
+    # beta=1, A=0.5: a payoff exactly equal to A (stimulus 0, no change) is practically
+    # impossible here, so every player that updates changes p. With fraction 0.5 about
+    # half of 400 players should change p in one round.
+    G = nx.complete_graph(400)
+    model = CooperationModel(G, "bm", beta=1.0, aspiration=0.5, epsilon=0.0,
+                             initial_coop=0.5, update_fraction=0.5, seed=4)
+    before = [player.p for player in model.players]
+    model.step()
+    n_changed = 0
+    for player, old_p in zip(model.players, before):
+        if player.p != old_p:
+            n_changed += 1
+    assert 140 < n_changed < 260  # binomial(400, 0.5): mean 200, sd 10
+
+
+def test_update_fraction_one_is_synchronous_model():
+    # explicit 1.0 must not draw extra random numbers: same run as the default
+    G = nx.random_regular_graph(4, 60, seed=1)
+    first = CooperationModel(G, "bm", beta=2.0, aspiration=0.6, seed=9)
+    second = CooperationModel(G, "bm", beta=2.0, aspiration=0.6, update_fraction=1.0, seed=9)
+    first.run(40)
+    second.run(40)
+    assert first.datacollector.model_vars["cooperation"] == second.datacollector.model_vars["cooperation"]
+
+
 def test_bad_arguments_rejected():
     G = nx.path_graph(2)
-    for kwargs in [{"agent_type": "q-learning"}, {"agent_type": "fermi", "payoff_scheme": "total"}]:
+    for kwargs in [{"agent_type": "q-learning"}, {"agent_type": "fermi", "payoff_scheme": "total"},
+                   {"agent_type": "bm", "update_fraction": 0.0}, {"agent_type": "bm", "update_fraction": 1.5}]:
         try:
             CooperationModel(G, **kwargs)
         except ValueError:

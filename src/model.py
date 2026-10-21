@@ -122,7 +122,7 @@ class CooperationModel(mesa.Model):
     def __init__(self, G, agent_type, b=1.5, payoff_scheme="average", kappa=0.1,
                  beta=1.0, aspiration=0.5, epsilon=0.2, initial_coop=0.5,
                  record_from=0, game="weak_pd", c=1.0, shuffle_seats=False, seat_groups=None,
-                 seed=None):
+                 update_fraction=1.0, seed=None):
         """
         G: networkx graph, connected, nodes labelled 0..n-1 (see networks.py)
         agent_type: "fermi" or "bm"
@@ -138,6 +138,9 @@ class CooperationModel(mesa.Model):
         seat_groups: with shuffle_seats, a list of node lists (networks.same_degree_groups):
             players then move only between seats of the same group (keep about their
             degree, lose their partners). None = any seat.
+        update_fraction: each round every player updates only with this probability
+            (1.0 = all players every round, synchronous). Below 1 the population no
+            longer switches in lockstep (desynchronised check, 2026-10-13).
         seed: int, makes the run repeatable
         """
         super().__init__(rng=seed)  # int seed makes runs repeatable
@@ -147,6 +150,8 @@ class CooperationModel(mesa.Model):
             raise ValueError("payoff_scheme must be 'average' or 'accumulated'")
         if game not in ("weak_pd", "donation"):
             raise ValueError("game must be 'weak_pd' or 'donation'")
+        if not 0 < update_fraction <= 1:
+            raise ValueError("update_fraction must be in (0, 1]")
 
         self.game = game
         self.c = c
@@ -161,6 +166,7 @@ class CooperationModel(mesa.Model):
         self.G = G
         self.shuffle_seats = shuffle_seats
         self.seat_groups = seat_groups
+        self.update_fraction = update_fraction
         # Neighbour lists looked up once: re-seating every round would otherwise
         # ask networkx for them again each round (slow on big graphs).
         self.neighbor_nodes = []
@@ -196,6 +202,10 @@ class CooperationModel(mesa.Model):
                     player.coop_rounds += 1
 
         for player in self.players:
+            # update_fraction < 1: a player skips this round's update with prob 1 - fraction.
+            # No random draw at 1.0, so default runs stay exactly as before.
+            if self.update_fraction < 1 and self.random.random() >= self.update_fraction:
+                continue
             player.update()
         self.rounds_played += 1
 

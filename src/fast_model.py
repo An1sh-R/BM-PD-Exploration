@@ -41,16 +41,22 @@ def bm_update(p, coop, payoff, beta, aspiration):
 
 
 def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
-           initial_coop=0.5, shuffle_seats=False, seat_groups=None, seed=None):
+           initial_coop=0.5, shuffle_seats=False, seat_groups=None, update_fraction=1.0,
+           seed=None):
     """One BM run. Same arguments as CooperationModel (agent_type="bm").
     seat_groups (with shuffle_seats): list of node lists (networks.same_degree_groups);
     players are then re-seated only within their group. None = any seat.
+    update_fraction: each round every player updates p only with this probability
+    (1.0 = everyone every round, the synchronous default). < 1 breaks the lockstep in
+    which all players switch together (desynchronised check, 2026-10-13).
 
     Returns:
         curve: cooperation fraction in every round (length steps)
         p: final cooperation probability of every player
         node_cooperation: per player, fraction of counted rounds spent cooperating
     """
+    if not 0 < update_fraction <= 1:
+        raise ValueError("update_fraction must be in (0, 1]")
     rng = np.random.default_rng(seed)
     n = A.shape[0]
     group_arrays = []
@@ -74,7 +80,15 @@ def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
             rounds_counted += 1
             coop_rounds += coop
 
-        p = bm_update(p, coop, payoff, beta, aspiration)
+        new_p = bm_update(p, coop, payoff, beta, aspiration)
+        if update_fraction < 1:
+            # only a random part of the population updates this round; the rest keep p.
+            # Drawn only here, so update_fraction = 1 gives the same random numbers as
+            # before (experiment-1 and extension runs reproduce bit-identically)
+            updates_now = rng.random(n) < update_fraction
+            p = np.where(updates_now, new_p, p)
+        else:
+            p = new_p
 
         if shuffle_seats:
             # players take new random seats: reorder everything that belongs to a player

@@ -7,6 +7,8 @@ Run from project root:
     python src/run.py --more           same grid on every other graph -> results/sweep_more_runs.csv:
                                        5 added networks (real, degseq, shuffled, ER, BA, WS)
                                        + ER/BA/WS of the original 5
+    python src/run.py --desync         high-beta check with desynchronised rounds (each player
+                                       updates with prob 0.5 per round) -> results/sweep_desync_runs.csv
     python src/run.py --processes 4    fewer worker processes, e.g. while using the laptop
                                        (default 12; can change between restarts)
 
@@ -42,6 +44,13 @@ from networks import (REAL_FILES, RESULTS_DIR, all_names, load_graph, rewired_na
 TEST = "--test" in sys.argv
 # --more: same experiment on the 5 networks added 2026-10-12, own CSV (sweep_more_runs.csv)
 MORE = "--more" in sys.argv
+# --desync (added 2026-10-13, mentor review): same model, but each round every player
+# updates only with probability UPDATE_FRACTION. Checks how much of the high-beta
+# effects comes from everyone switching at the same moment. Own CSV (sweep_desync_runs.csv).
+DESYNC = "--desync" in sys.argv
+UPDATE_FRACTION = 1.0  # synchronous: every player updates every round
+if DESYNC:
+    UPDATE_FRACTION = 0.5
 
 # ---- grid ------------------------------------------------------------------
 # Decided: epsilon 0.05, b = 1.1-2.0, full beta x a grid, 10 reps everywhere.
@@ -55,6 +64,8 @@ if TEST:
     STEPS = 300
     WINDOW = 100
     OUT_NAME = "sweep_test"
+    if DESYNC:
+        OUT_NAME = "sweep_test_desync"  # compared with sweep_test_runs.csv by analyze.py
 else:
     # Decided 2026-10-07: real, degseq, shuffled only (no ER/BA/WS). Small networks
     # first, so their results are complete before the slow GitHub/Deezer runs.
@@ -77,6 +88,16 @@ else:
         for real_name in NETWORK_ORDER:
             for suffix in ["_samedeg", "_er", "_ba", "_ws"]:
                 GRAPHS.append(real_name + suffix)
+    if DESYNC:
+        # Decided 2026-10-13 (mentor review): the beta >= 2 claims need a desynchronised
+        # rerun. All 10 networks; the graph types used in the contrasts (BA not used in
+        # one). Small graphs first. Grid below is cut to beta 1-100 and a = 0.1-0.7.
+        OUT_NAME = "sweep_desync"
+        GRAPHS = []
+        for real_name in ["emaileu", "grqc", "facebook", "gnutella", "asinternet",
+                          "lastfm", "twitch", "astroph", "deezer", "github"]:
+            for suffix in ["", "_degseq", "_shuffled", "_samedeg", "_er", "_ws"]:
+                GRAPHS.append(real_name + suffix)
     # kept on purpose: beta=0.01 still drifts at 1000 steps, a=0.9 is the dead zone (flag in analysis)
     BETAS = [0.01, 0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0, 100.0]
     A_FRACTIONS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
@@ -86,6 +107,13 @@ else:
     REPS = 10
     STEPS = 1500
     WINDOW = 500  # final cooperation = mean over the last 500 steps (eps=0.05 pilot: most flat by ~600)
+    if DESYNC:
+        # beta = 1 is the low-beta control (expected: no change vs synchronous); 3-100 the
+        # claims under test. a = 0.1-0.7: regimes A<=1 and A>1, no a = 0, no dead zone.
+        # 10 networks x 6 types x 4 beta x 7 a x 5 b x 10 reps = 84,000 runs. Same seeds
+        # as the synchronous sweeps, so every run has a synchronous twin.
+        BETAS = [1.0, 3.0, 10.0, 100.0]
+        A_FRACTIONS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
 
 EPSILON = 0.05  # slip = flip the intended action, as Ezaki & Masuda 2017
 # 8 processes on this 10-core / 16-thread laptop: full sweep ~5 h with fast_model
@@ -113,6 +141,9 @@ NODES_DIR = os.path.join(RESULTS_DIR, OUT_NAME + "_nodes")  # per-node cooperati
 COLUMNS = ["run_id", "graph", "family", "graph_type", "agent", "b", "beta",
            "a_fraction", "aspiration", "epsilon", "kappa", "rep", "source_graph", "steps",
            "cooperation", "cooperation_std", "drift", "even_odd_gap", "mean_p", "seconds"]
+if DESYNC:
+    # only in the desync CSV: the older CSVs keep their columns, so resuming them still works
+    COLUMNS = COLUMNS + ["update_fraction"]
 
 
 # ---- jobs ------------------------------------------------------------------
@@ -220,7 +251,7 @@ def run_one(job):
     curve, p, node_cooperation = run_bm(A, degree, job["b"], job["beta"], aspiration,
                                         EPSILON, STEPS, record_from=record_from,
                                         shuffle_seats=shuffle, seat_groups=seat_groups,
-                                        seed=job["rep"])
+                                        update_fraction=UPDATE_FRACTION, seed=job["rep"])
 
     window = np.array(curve[record_from:])
 
@@ -250,6 +281,8 @@ def run_one(job):
         "mean_p": float(p.mean()),
         "seconds": round(time.time() - start, 2),
     }
+    if DESYNC:
+        row["update_fraction"] = UPDATE_FRACTION
 
     # Per-node cooperation: every static graph, first rep only (keeps disk use small).
     # degseq (added 2026-10-12): same degrees, clustering destroyed -> separates degree

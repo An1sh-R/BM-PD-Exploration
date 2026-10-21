@@ -244,7 +244,8 @@ src/
   model.py          Mesa reference model (readable version of the rules)
   fast_model.py     numpy version of BM used by run.py (~10-20x faster)
   check_fast_model.py, test_model.py, validate_bm.py, pilot.py   checks (see above)
-  run.py            the sweep -> results/sweep_runs.csv (--more: extension -> sweep_more_runs.csv)
+  run.py            the sweep -> results/sweep_runs.csv (--more: extension -> sweep_more_runs.csv;
+                    --desync: high-beta check, half the players update per round -> sweep_desync_runs.csv)
   analyze.py        diagnostics, contrasts, node level -> results/sweep_*
   plot_graphs.py    network drawings -> graphs/
 results/            sweep_runs.csv (90,000 runs), sweep_more_runs.csv (330,000 runs), tables and figures
@@ -260,6 +261,13 @@ python src/test_model.py
 python src/run.py --test        tiny sweep, checks the code
 python src/analyze.py
 ```
+
+**Desynchronised check (2026-10-13, not run yet).** All players updating at the same moment
+(synchronous rounds) inflates the high-β effects. `python src/run.py --desync` reruns
+β = 1, 3, 10, 100 with each player updating with probability 0.5 per round (84,000 runs,
+same seeds); `python src/analyze.py --desync` puts every contrast next to its synchronous
+value (`results/sweep_desync_vs_sync.csv`). Test first: `python src/run.py --test --desync`
+(needs `--test` without `--desync` first), then `python src/analyze.py --test --desync`.
 
 `python src/run.py` reruns the full sweep (~6 h on 12 cores; it skips runs already in
 `results/sweep_runs.csv`, so delete or rename that file first). Per-node results

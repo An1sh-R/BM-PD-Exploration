@@ -61,6 +61,7 @@ Added 2026-10-13 (ER/BA/WS for all 10 networks), before those runs:
 - **H5 (C3, clustering).** WS − ER ≈ 0 at low β, positive at high β (v2 partial: +0.01–0.04). Uninformative for gnutella (its WS is near-random).
 - **H7 (C2, partners vs degree position; samedeg added 2026-10-13, before its runs).** real − samedeg > 0 in A ≤ 1 on all 10 networks and grows with β (fixed partners matter even when each player keeps its degree). No prediction for samedeg − shuffled's size; its share of real − shuffled is the answer to the C2 caveat.
 - **H6 (C1, needs only degrees).** A ≤ 1: Spearman(cooperation, degree) < 0 on degseq and BA as on real (the mechanism uses only a node's degree), weaker on ER and WS (narrow degree range).
+- **H8 (all β ≥ 2 claims; desynchronised rerun, written 2026-10-13 before its runs, mentor review).** With each player updating with probability 0.5 per round (`run.py --desync`), regime A ≤ 1: (a) at β = 1 every contrast changes by ≤ 0.005 vs the synchronous run; (b) at β ≥ 3 real − shuffled, real − samedeg, real − degseq and WS − ER all shrink, by roughly half; (c) on grqc and astroph real − samedeg and WS − ER stay > 0.01 at β = 100. Basis: mentor's spot check (grqc, astroph, LastFM, Facebook; b = 1.5, a = 0.2–0.4, 3 seeds): β = 0.3 unchanged, β = 100 effects 40–65% smaller. If (c) fails, claims stay at β ≤ 1.
 
 ### Outcomes (sweep complete 2026-10-13)
 

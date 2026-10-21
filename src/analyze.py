@@ -19,7 +19,8 @@ can be satisfied; "A>1" a cooperator never reaches A (max cooperator payoff = 1)
 Only A<=1 and A>1 are shown in the plots. With the cutoff at 0.8, A>1 exists only
 for b >= 1.5 (a = 0.7 at b = 1.5; a = 0.6, 0.7 at b = 1.7, 2.0).
 
-Run from project root:  python src/analyze.py   (--test: test sweep, --more: the 5 added networks)
+Run from project root:  python src/analyze.py   (--test: test sweep, --more: the 5 added networks,
+                        --desync: desynchronised rerun, compared with the synchronous runs)
 Writes results/<name>_*.csv and results/<name>_*.png
 """
 import os
@@ -44,6 +45,16 @@ if TEST:
     NAME = "sweep_test"
 elif MORE:
     NAME = "sweep_more"
+# --desync (2026-10-13): run.py --desync output, plus every contrast next to its
+# synchronous twin (same graph, b, beta, a, rep) -> <name>_vs_sync.csv/.png
+DESYNC = "--desync" in sys.argv
+if DESYNC:
+    MORE = False
+    NAME = "sweep_desync"
+    SYNC_FILES = ["sweep_runs.csv", "sweep_more_runs.csv"]
+    if TEST:
+        NAME = "sweep_test_desync"
+        SYNC_FILES = ["sweep_test_runs.csv"]
 
 DRIFT_LIMIT = 0.02  # |drift| above this: run was still moving at the end
 SPREAD_LIMIT = 0.05  # std between repeats above this: repeats end at different levels
@@ -69,15 +80,13 @@ def regime(a_fraction, b):
     return "A>1"
 
 
-def load_bm_runs():
-    """All runs, beta and a_fraction as numbers, plus a regime column."""
-    runs = pd.read_csv(out_path("_runs.csv"), dtype={"beta": str, "a_fraction": str})
-    if MORE:
-        # experiment-1 rows give the original 5 networks' real/degseq/shuffled
-        first = pd.read_csv(os.path.join(RESULTS_DIR, "sweep_runs.csv"),
-                            dtype={"beta": str, "a_fraction": str})
-        runs = pd.concat([first, runs], ignore_index=True)
-        assert runs["run_id"].is_unique, "same run in both CSVs"
+def read_bm_runs(paths):
+    """BM runs from one or more run CSVs, beta and a_fraction as numbers, plus a regime column."""
+    frames = []
+    for path in paths:
+        frames.append(pd.read_csv(path, dtype={"beta": str, "a_fraction": str}))
+    runs = pd.concat(frames, ignore_index=True)
+    assert runs["run_id"].is_unique, "same run in two CSVs"
     bm = runs[runs["agent"] == "bm"].copy()
     bm["beta"] = bm["beta"].astype(float)
     bm["a_fraction"] = bm["a_fraction"].astype(float)
@@ -86,6 +95,14 @@ def load_bm_runs():
         regimes.append(regime(row["a_fraction"], row["b"]))
     bm["regime"] = regimes
     return bm
+
+
+def load_bm_runs():
+    paths = [out_path("_runs.csv")]
+    if MORE:
+        # experiment-1 rows give the original 5 networks' real/degseq/shuffled
+        paths = [os.path.join(RESULTS_DIR, "sweep_runs.csv")] + paths
+    return read_bm_runs(paths)
 
 
 def independent_unit(graph_types, rep):
@@ -185,10 +202,10 @@ COMPARISONS = [("partner_effect", "real", "shuffled", "real - shuffled: fixed pa
                ("clustering", "ws", "er", "WS - ER: clustering + locality, near-equal degrees")]
 
 
-def steps(bm):
+def contrast_table(bm):
     """Paired differences per family, regime and beta, with a 95% CI over independent
     units (see independent_unit). Per rep: mean over the regime's (b, a) cells of
-    graph1 - graph2 (same seed); then averaged within each unit."""
+    graph1 - graph2 (same seed); then averaged within each unit. None if no pairs."""
     wide = bm.pivot_table(index=["family", "regime", "b", "beta", "a_fraction", "rep"],
                           columns="graph_type", values="cooperation").reset_index()
     rows = []
@@ -211,9 +228,15 @@ def steps(bm):
             rows.append({"comparison": name, "family": family, "regime": shown, "beta": beta,
                          "difference": mean, "ci": half, "n_units": len(group)})
     if not rows:
+        return None
+    return pd.DataFrame(rows)
+
+
+def steps(bm):
+    table = contrast_table(bm)
+    if table is None:
         print("steps: no comparable graph pairs in the sweep, skipped")
         return None
-    table = pd.DataFrame(rows)
     table.to_csv(out_path("_steps.csv"), index=False)
 
     comparisons = []
@@ -321,12 +344,86 @@ def node_level(bm):
     return table
 
 
+# ---- 3. desynchronised vs synchronous -------------------------------------------
+
+def compare_with_synchronous(desync_bm, desync_table):
+    """Each contrast of the desync rerun next to the same contrast from the synchronous
+    sweeps, on exactly the same runs (graph, b, beta, a, rep). kept_share = desync / sync:
+    1 = effect not caused by lockstep updating, 0 = all of it was. Left empty when the
+    synchronous effect is below 0.005 (ratio meaningless)."""
+    paths = []
+    for file_name in SYNC_FILES:
+        path = os.path.join(RESULTS_DIR, file_name)
+        if os.path.exists(path):
+            paths.append(path)
+    if not paths or desync_table is None:
+        print("desync vs sync: synchronous runs or desync contrasts missing, skipped")
+        return None
+    sync_bm = read_bm_runs(paths)
+    keys = ["graph", "b", "beta", "a_fraction", "rep"]
+    twins = desync_bm[keys].drop_duplicates()
+    sync_bm = sync_bm.merge(twins, on=keys, how="inner")
+    print(f"desync vs sync: {len(sync_bm)} synchronous twins of {len(desync_bm)} desync runs")
+    sync_table = contrast_table(sync_bm)
+    if sync_table is None:
+        print("desync vs sync: no synchronous pairs, skipped")
+        return None
+
+    table = desync_table.merge(sync_table, on=["comparison", "family", "regime", "beta"],
+                               suffixes=("_desync", "_sync"))
+    shares = []
+    for _, row in table.iterrows():
+        if abs(row["difference_sync"]) < 0.005:
+            shares.append(np.nan)
+        else:
+            shares.append(row["difference_desync"] / row["difference_sync"])
+    table["kept_share"] = shares
+    table.to_csv(out_path("_vs_sync.csv"), index=False)
+
+    print()
+    print("DESYNC vs SYNC, regime A<=1: contrast with all players updating together (sync)")
+    print("and with each player updating with prob 0.5 per round (desync)")
+    main_regime = table[table["regime"] == "A<=1"]
+    for name in main_regime["comparison"].unique():
+        part = main_regime[main_regime["comparison"] == name]
+        shown = part.pivot_table(index="family", columns="beta",
+                                 values=["difference_sync", "difference_desync"])
+        print()
+        print(name)
+        print(shown.round(3).to_string())
+
+    names = list(main_regime["comparison"].unique())
+    if names:
+        fig, axes = plt.subplots(1, len(names), figsize=(4.2 * len(names), 4), squeeze=False)
+        for c, name in enumerate(names):
+            ax = axes[0][c]
+            part = main_regime[main_regime["comparison"] == name]
+            for beta, group in part.groupby("beta"):
+                ax.scatter(group["difference_sync"], group["difference_desync"], s=14,
+                           label=f"beta {beta:g}")
+            low = min(part["difference_sync"].min(), part["difference_desync"].min(), 0)
+            high = max(part["difference_sync"].max(), part["difference_desync"].max(), 0)
+            ax.plot([low, high], [low, high], color="black", linewidth=0.5)  # no change
+            ax.axhline(0, color="grey", linewidth=0.5)
+            ax.set_xlabel("synchronous")
+            ax.set_ylabel("desynchronised")
+            ax.set_title(name, fontsize=9)
+        axes[0][-1].legend(fontsize=7)
+        fig.suptitle("Contrasts, regime A<=1, one point per network and beta. "
+                     "On the line: no effect of lockstep updating")
+        fig.savefig(out_path("_vs_sync.png"), dpi=150, bbox_inches="tight")
+        plt.close(fig)
+    return table
+
+
 def main():
     bm = load_bm_runs()
     print(f"{len(bm)} BM runs, {bm['graph'].nunique()} graphs")
     diagnostics(bm)
-    steps(bm)
+    table = steps(bm)
     node_level(bm)
+    if DESYNC:
+        compare_with_synchronous(bm, table)
     print("saved tables and figures in", RESULTS_DIR)
 
 
