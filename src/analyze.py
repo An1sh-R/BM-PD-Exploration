@@ -20,7 +20,8 @@ Only A<=1 and A>1 are shown in the plots. With the cutoff at 0.8, A>1 exists onl
 for b >= 1.5 (a = 0.7 at b = 1.5; a = 0.6, 0.7 at b = 1.7, 2.0).
 
 Run from project root:  python src/analyze.py   (--test: test sweep, --more: the 5 added networks,
-                        --desync: desynchronised rerun, compared with the synchronous runs)
+                        --desync: desynchronised rerun, compared with the synchronous runs:
+                        contrasts + node-level degree correlation incl. the A>1 reversal)
 Writes results/<name>_*.csv and results/<name>_*.png
 """
 import os
@@ -52,9 +53,12 @@ if DESYNC:
     MORE = False
     NAME = "sweep_desync"
     SYNC_FILES = ["sweep_runs.csv", "sweep_more_runs.csv"]
+    # node files of the synchronous twins (real graphs: original 5 in sweep_nodes, added 5 in sweep_more_nodes)
+    SYNC_NODE_DIRS = ["sweep_nodes", "sweep_more_nodes"]
     if TEST:
         NAME = "sweep_test_desync"
         SYNC_FILES = ["sweep_test_runs.csv"]
+        SYNC_NODE_DIRS = ["sweep_test_nodes"]
 
 DRIFT_LIMIT = 0.02  # |drift| above this: run was still moving at the end
 SPREAD_LIMIT = 0.05  # std between repeats above this: repeats end at different levels
@@ -416,6 +420,78 @@ def compare_with_synchronous(desync_bm, desync_table):
     return table
 
 
+def first_positive_beta(line):
+    """Smallest beta where the mean correlation is above 0 (None if never)."""
+    for beta in sorted(line.index):
+        if line[beta] > 0:
+            return beta
+    return None
+
+
+def compare_node_level_with_synchronous(desync_bm):
+    """C1 at node level (added 2026-10-21): Spearman(node cooperation, degree) on the
+    real graphs, desync run next to its synchronous twin. A desync run and its twin have
+    the same run_id, so the node files have the same name in different folders. Both
+    correlations are computed here from the node files (rep 0), same degrees.
+    Main question: does the A>1 reversal (hubs cooperate more at high beta) survive?"""
+    sync_dirs = []
+    for folder in SYNC_NODE_DIRS:
+        path = os.path.join(RESULTS_DIR, folder)
+        if os.path.exists(path):
+            sync_dirs.append(path)
+    desync_dir = out_path("_nodes")
+    rows = []
+    for family in REAL_FILES:
+        part = desync_bm[(desync_bm["graph"] == family) & (desync_bm["rep"] == 0)]
+        if len(part) == 0:
+            continue
+        G = load_graph(family)
+        degrees = []
+        for node in range(G.number_of_nodes()):
+            degrees.append(G.degree(node))
+        for _, run in part.iterrows():
+            file_name = node_file_name(run["run_id"])
+            desync_path = os.path.join(desync_dir, file_name)
+            sync_path = None
+            for folder in sync_dirs:
+                candidate = os.path.join(folder, file_name)
+                if os.path.exists(candidate):
+                    sync_path = candidate
+            if sync_path is None or not os.path.exists(desync_path):
+                continue
+            rows.append({"family": family, "b": run["b"], "beta": run["beta"],
+                         "a_fraction": run["a_fraction"], "regime": run["regime"],
+                         "corr_degree_sync": stats.spearmanr(np.load(sync_path), degrees).statistic,
+                         "corr_degree_desync": stats.spearmanr(np.load(desync_path), degrees).statistic})
+    if not rows:
+        print("node level desync vs sync: no paired node files, skipped")
+        return None
+    table = pd.DataFrame(rows)
+    table.to_csv(out_path("_node_vs_sync.csv"), index=False)
+
+    print()
+    print(f"NODE LEVEL, real graphs, rep 0: Spearman(cooperation, degree), sync vs desync "
+          f"({len(table)} paired cells)")
+    for shown in SHOWN_REGIMES:
+        part = table[table["regime"] == shown]
+        if len(part) == 0:
+            continue
+        shown_table = part.pivot_table(index="family", columns="beta",
+                                       values=["corr_degree_sync", "corr_degree_desync"])
+        print()
+        print(f"regime {shown}")
+        print(shown_table.round(2).to_string())
+        if shown == "A>1":
+            print()
+            print("A>1 reversal: first beta where the mean correlation is > 0 (hubs cooperate more)")
+            for family, group in part.groupby("family"):
+                sync_line = group.groupby("beta")["corr_degree_sync"].mean()
+                desync_line = group.groupby("beta")["corr_degree_desync"].mean()
+                print(f"  {family:11s} sync: {first_positive_beta(sync_line)}   "
+                      f"desync: {first_positive_beta(desync_line)}")
+    return table
+
+
 def main():
     bm = load_bm_runs()
     print(f"{len(bm)} BM runs, {bm['graph'].nunique()} graphs")
@@ -424,6 +500,7 @@ def main():
     node_level(bm)
     if DESYNC:
         compare_with_synchronous(bm, table)
+        compare_node_level_with_synchronous(bm)
     print("saved tables and figures in", RESULTS_DIR)
 
 
