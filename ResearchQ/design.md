@@ -147,6 +147,7 @@ Companion to `question.md`. Trimmed 2026-10-12 from `../Experimentation/Research
   - Reviewer notes kept for later: β = 1 may be underpowered (4 cells × 5 reps; more cells, not reps, since degseq has only 5 rewirings); analysis lacks real − shuffled, f = 1 / desync checks, kept shares; WS, A > 1 cells, β = 3 not in the grid.
   - Prediction H9 in question.md.
   - Checks before launch (2026-10-23): 20/20 tests; `check_fast_model.py` 13/13 cells, output file unchanged; 30 old runs + 6 rep-0 node files rerun bit-identically with `record_every`; `async_scan.py --test` + `--analyze` run end to end; 12 full-length runs: f = 1 equals the synchronous sweep and f = 0.5 rounds 1,000–1,500 equal the desync sweep exactly (6 graph types/networks). Note: compare CSV floats with `pd.read_csv(..., float_precision="round_trip")`; the default parser can be 1 ulp off and fakes mismatches.
+- **2026-10-23 — Async scan complete** (12,000 runs, 154 min on 12 processes). `async_scan.py --analyze` → `results/async_scan_contrasts.csv/.png`. Extra checks (scratch script, not kept): identity with sync (f = 1) and desync (f = 0.5, rounds 1,000–1,500) 3,000/3,000 each; settling; CIs at f = 0.1; kept shares; (d) = real − samedeg at f = 0.5 over rounds 1,000–1,500 vs the window. Outcome H9 in question.md: fixed-partner effect is a lockstep effect (≈ 0 by f = 0.25, slightly negative at f = 0.1); hub defection and degree spread survive; real − degseq at high β mostly lockstep. Claim revision (C2, C3) proposed to the user, not yet applied.
 
 ## Open
 
