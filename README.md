@@ -216,9 +216,46 @@ Node level: rep 0 only, no CIs.
 **Diagnostics:** 41,937 of 42,000 cells ok; 56 still moving and 7 with repeats that differ
 (≤ 4 per graph); 11 % oscillate (β ≥ 2, mostly shuffled/samedeg).
 
+## Desynchronised-update check (2026-10-23)
+
+In all sweeps above every player updates at the same moment each round. At high β each
+update is large, so the whole population can switch together (this lockstep also causes the
+period-2 oscillations). Check (mentor's code): each player updates with probability 0.5 per
+round; everyone still plays every round. 10 networks × (real, degseq, shuffled, samedeg, ER,
+WS) × β = 1, 3, 10, 100 × a = 0.1–0.7 × 5 b × 10 reps = **84,000 runs**, same seeds as the
+synchronous sweeps (`results/sweep_desync_runs.csv`, `python src/analyze.py --desync` →
+`results/sweep_desync_vs_sync.csv`, `results/sweep_desync_node_vs_sync.csv`).
+Full report: `report_desync.txt`.
+
+Result: most of the high-β contrasts came from synchronous updating; hub defection and the
+benefit of uneven degrees are robust.
+
+| Contrast, A ≤ 1 | Median share kept under desync, β = 1 | β = 10 | β = 100 |
+|---|---|---|---|
+| real − shuffled (fixed partners) | 54% | 26% | 30% |
+| real − samedeg (partners only) | 45% | 32% | 33% |
+| WS − ER (clustering) | (≈ 0 both) | 25% | 29% |
+| real − degseq (structure beyond degree) | (≈ 0 both) | 44% | 46% |
+| degseq − ER (degree spread) | 97% | 87% | 86% |
+
+Share kept = desync ÷ synchronous per network, where the synchronous effect is ≥ 0.005.
+
+- **Fixed partners (C2)** still help on all 10 networks: real − samedeg at β = 100 is
+  +0.005 to +0.039 (≥ 0.01 on 6 of 10; was +0.016 to +0.104, emaileu −0.009).
+- **Clustering (C3)** at β = 100 keeps ≥ 0.01 only on grqc (+0.029), astroph (+0.025) and
+  Facebook (+0.013). Structure beyond degree likewise: grqc +0.028, astroph +0.017, Facebook +0.012.
+- **Hubs defect (C1)** on all 10 networks (except Facebook at β = 100, +0.05), typically
+  0.08 weaker. At A > 1 the reversal is stronger and steady: positive by β = 3 on 9 of 10
+  networks, +0.60 to +0.78 at β = 100.
+- At A > 1, desync makes fixed partners and uneven degrees lower cooperation at high β
+  (−0.003 to −0.020 and −0.017 to −0.036 at β = 100).
+- Oscillating cells: 34 of 8,400 (0.4%), against 1,375 of the same cells (16%) synchronously.
+- Open: desync also halves how often each player updates (~750 instead of 1,500 updates),
+  so the drop of the partner effect at β = 1 cannot yet be assigned to either change.
+
 ## Checks
 
-- `src/test_model.py`: unit checks of the Mesa reference model (18 checks).
+- `src/test_model.py`: unit checks of the Mesa reference model (20 checks).
 - `src/check_fast_model.py`: the numpy engine used for the sweep (`fast_model.py`) against
   the Mesa reference (`model.py`): exact update rules + 20-seed run comparison
   (`results/fast_model_check.csv`).
@@ -262,12 +299,11 @@ python src/run.py --test        tiny sweep, checks the code
 python src/analyze.py
 ```
 
-**Desynchronised check (2026-10-13, not run yet).** All players updating at the same moment
-(synchronous rounds) inflates the high-β effects. `python src/run.py --desync` reruns
-β = 1, 3, 10, 100 with each player updating with probability 0.5 per round (84,000 runs,
-same seeds); `python src/analyze.py --desync` puts every contrast next to its synchronous
-value (`results/sweep_desync_vs_sync.csv`). Test first: `python src/run.py --test --desync`
-(needs `--test` without `--desync` first), then `python src/analyze.py --test --desync`.
+**Desynchronised check** (results above): `python src/run.py --desync` reruns β = 1, 3, 10,
+100 with each player updating with probability 0.5 per round (84,000 runs, same seeds);
+`python src/analyze.py --desync` puts every contrast and the node-level degree correlation
+next to its synchronous value. Test first: `python src/run.py --test --desync` (needs
+`--test` without `--desync` first), then `python src/analyze.py --test --desync`.
 
 `python src/run.py` reruns the full sweep (~6 h on 12 cores; it skips runs already in
 `results/sweep_runs.csv`, so delete or rename that file first). Per-node results

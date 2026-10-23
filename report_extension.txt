@@ -1,6 +1,17 @@
 BM-PD EXTENSION SWEEP: REPORT
 2026-10-13
 
+UPDATE 2026-10-23: desynchronised-update check (details in report_desync.txt).
+All results below use synchronous updating (every player updates at the same moment).
+Rerun with each player updating with probability 0.5 per round (84,000 runs, beta 1-100):
+  - C1 (hubs defect) holds; the A > 1 reversal becomes stronger and steady
+    (positive by beta = 3 on 9 of 10 networks).
+  - C2 (fixed partners) holds on all 10 networks but is much smaller: about half at
+    beta = 1, about a third at beta >= 10 (real - samedeg at beta = 100: +0.005 to +0.039).
+  - C3: uneven degrees help, robustly (degseq - ER mostly kept). The high-beta clustering
+    and structure effects keep >= 0.01 only on grqc, astroph and Facebook.
+  - So the high-beta numbers below (beta >= 3) partly reflect synchronous updating.
+
 All three experiment-1 claims hold on 5 structurally different networks, with two
 refinements. Fixed partners (C2) help on all 10, but at low beta on networks with very
 uneven degrees most of that effect is players keeping their degree. Structure beyond
