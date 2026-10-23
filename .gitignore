@@ -4,3 +4,4 @@ __pycache__/
 results/sweep_test_*
 results/*_nodes/
 results/*.log
+results/async_scan_test_*

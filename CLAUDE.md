@@ -38,6 +38,7 @@ BM-PD-Exploration/
     run.py            the sweep (--more: 5 added networks, --test: tiny)
     analyze.py        diagnostics, real-shuffled, real-degseq, node level
     band_test.py      C1 mechanism test 1: hub defection vs the band rule -> results/band_test.csv
+    async_scan.py     update_fraction 1-0.1 at equal updates per player (mentor) -> results/async_scan_*
     plot_graphs.py    network drawings -> graphs/
   graphs/           one png per original real graph
   results/          sweep_runs.csv (exp 1), sweep_more_runs.csv (added networks + all samedeg/ER/BA/WS), sweep_desync_runs.csv (desync check; same run_ids as sync twins, never merge), tables, figures

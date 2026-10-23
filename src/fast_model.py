@@ -42,13 +42,17 @@ def bm_update(p, coop, payoff, beta, aspiration):
 
 def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
            initial_coop=0.5, shuffle_seats=False, seat_groups=None, update_fraction=1.0,
-           seed=None):
+           record_every=1, seed=None):
     """One BM run. Same arguments as CooperationModel (agent_type="bm").
     seat_groups (with shuffle_seats): list of node lists (networks.same_degree_groups);
     players are then re-seated only within their group. None = any seat.
     update_fraction: each round every player updates p only with this probability
     (1.0 = everyone every round, the synchronous default). < 1 breaks the lockstep in
     which all players switch together (desynchronised check, 2026-10-13).
+    record_every: node_cooperation counts only every record_every-th round from
+    record_from on (measurement only, no rule change; 1 = every round, as before).
+    Used by async_scan.py so that long runs at small update_fraction average the same
+    number of actions per player (added 2026-10-23).
 
     Returns:
         curve: cooperation fraction in every round (length steps)
@@ -57,6 +61,8 @@ def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
     """
     if not 0 < update_fraction <= 1:
         raise ValueError("update_fraction must be in (0, 1]")
+    if record_every < 1:
+        raise ValueError("record_every must be at least 1")
     rng = np.random.default_rng(seed)
     n = A.shape[0]
     group_arrays = []
@@ -76,7 +82,7 @@ def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
         payoff = weak_pd_payoffs(A, degree, coop, b)
 
         curve[t] = coop.mean()
-        if t >= record_from:
+        if t >= record_from and (t - record_from) % record_every == 0:
             rounds_counted += 1
             coop_rounds += coop
 
