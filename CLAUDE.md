@@ -24,7 +24,7 @@ Scope: build on the experiment-1 claims (hubs defect, fixed partners, structure 
 
 ```
 BM-PD-Exploration/
-  CLAUDE.md, README.md, requirements.txt, report_extension.txt + report_desync.txt (reports for the mentor)
+  CLAUDE.md, README.md, requirements.txt, report_extension.txt + report_desync.txt + report_async.txt (reports for the mentor)
   ResearchQ/        question.md (question, claims, hypotheses), design.md (decisions, history)
   data/             real edge lists (10) + synthetic/ (rewirings, ER/BA/WS; generated once, fixed)
   src/              ALL code, flat
@@ -41,7 +41,7 @@ BM-PD-Exploration/
     async_scan.py     update_fraction 1-0.1 at equal updates per player (mentor) -> results/async_scan_*
     plot_graphs.py    network drawings -> graphs/
   graphs/           one png per original real graph
-  results/          sweep_runs.csv (exp 1), sweep_more_runs.csv (added networks + all samedeg/ER/BA/WS), sweep_desync_runs.csv (desync check; same run_ids as sync twins, never merge), tables, figures
+  results/          sweep_runs.csv (exp 1), sweep_more_runs.csv (added networks + all samedeg/ER/BA/WS), sweep_desync_runs.csv (desync check; same run_ids as sync twins, never merge), async_scan_runs.csv, tables, figures
 ```
 
 - Scripts import each other directly (`from networks import ...`). No packages, no `__init__.py`.

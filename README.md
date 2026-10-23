@@ -4,7 +4,10 @@ Weak Prisoner's Dilemma played by reinforcement learners (Bush–Mosteller, BM) 
 networks. Question: how much do fixed partners and network structure beyond the
 degree sequence change cooperation, and how does that depend on learning sensitivity β?
 Experiment 1 (below) used 5 networks; the extension (further down) adds 5 more and
-same-degree shuffle, ER, BA and WS versions of all 10.
+same-degree shuffle, ER, BA and WS versions of all 10. Two later checks (desynchronised
+updates, async scan) show that the high-β fixed-partner and structure effects in these
+sections come from all players updating at the same moment; hub defection and the benefit
+of uneven degrees survive. Current claims: `ResearchQ/question.md`.
 
 ## What was run
 
@@ -250,8 +253,50 @@ Share kept = desync ÷ synchronous per network, where the synchronous effect is 
 - At A > 1, desync makes fixed partners and uneven degrees lower cooperation at high β
   (−0.003 to −0.020 and −0.017 to −0.036 at β = 100).
 - Oscillating cells: 34 of 8,400 (0.4%), against 1,375 of the same cells (16%) synchronously.
-- Open: desync also halves how often each player updates (~750 instead of 1,500 updates),
-  so the drop of the partner effect at β = 1 cannot yet be assigned to either change.
+- Desync also halves how often each player updates (~750 instead of 1,500 updates). The
+  async scan below separates the two: the drop comes from breaking the lockstep.
+
+## Async scan (2026-10-23)
+
+Mentor's script (`src/async_scan.py`). Update fraction f = 1, 0.5, 0.25, 0.1 (0.1 = about
+one player in ten updates per round) with 1,500/f rounds and a window of 500/f, so every
+player gets ~1,500 updates at every f: a smaller f removes the lockstep, not learning time.
+10 networks × (real, degseq, samedeg, shuffled, ER) × β = 1, 10, 100 × a = 0.2, 0.4 ×
+b = 1.5, 2.0 × 5 reps = **12,000 runs**, A ≤ 1 only (`results/async_scan_runs.csv`;
+`python src/async_scan.py --analyze` → `results/async_scan_contrasts.csv/.png`).
+Full report: `report_async.txt`.
+
+Checks: f = 1 equals the synchronous sweeps and f = 0.5 (rounds 1,000–1,500) equals the
+desync sweep, bit-identically, in 3,000 of 3,000 runs each. Node cooperation is sampled
+every 1/f rounds (~500 actions per player at every f), so ρ is not inflated by less noise
+at small f. Runs settled (drift > 0.01 in ≤ 0.3% at f ≤ 0.5; no oscillation at f ≤ 0.25).
+
+| Contrast, A ≤ 1 | β | f = 1 (range) | Median share kept, f = 0.5 | f = 0.25 | f = 0.1 | f = 0.1 (range) |
+|---|---|---|---|---|---|---|
+| real − samedeg (fixed partners) | 1 | +0.010 to +0.024 | 53% | 33% | 23% | −0.002 to +0.007 |
+| | 10 | −0.020 to +0.126 | 28% | 1% | −12% | −0.017 to 0.000 |
+| | 100 | −0.029 to +0.131 | 26% | 4% | −14% | −0.019 to +0.004 |
+| samedeg − shuffled (keeping one's degree) | 1 | +0.001 to +0.039 | 99% | 100% | 100% | +0.001 to +0.039 |
+| | 100 | +0.004 to +0.093 | 15% | 12% | 11% | −0.002 to +0.011 |
+| real − degseq (structure beyond degree) | 100 | −0.030 to +0.082 | 44% | 23% | 8% | −0.032 to +0.010 |
+| degseq − ER (degree spread) | 1 | +0.043 to +0.080 | 97% | 96% | 95% | +0.041 to +0.076 |
+| | 100 | +0.028 to +0.095 | 88% | 84% | 81% | −0.001 to +0.070 |
+
+Share kept = value at f ÷ value at f = 1 per network, where |f = 1 value| ≥ 0.005. f = 1
+values are over this scan's 4 (b, a) cells, so they differ from the tables above.
+
+- **Fixed partners (C2)** only help in lockstep. The effect shrinks steadily as f falls and
+  at f = 0.1, β ≥ 10 is slightly negative: −0.012 to −0.019 on 6–7 of 10 networks (CIs
+  exclude 0). At f = 0.5 it is the same after ~750 and ~1,500 updates per player
+  (≤ 0.006 apart), so the desync drop came from breaking the lockstep, not from fewer updates.
+- **Keeping one's degree** at β = 1 is untouched (asinternet +0.039, GitHub +0.033,
+  Twitch +0.021); at high β its synchronous size was lockstep.
+- **Hubs defect (C1)** at f = 0.1 on all 10 networks at β = 1 (−0.52 to −0.83, 80–94% of
+  f = 1) and β = 10 (−0.36 to −0.70); at β = 100 on 9 of 10 (−0.30 to −0.64), Facebook ≈ −0.05.
+- **Degree spread (C3)** stays (+0.033 to +0.076 at f = 0.1, all 10, β ≤ 10; β = 100 all but
+  Facebook). **Structure beyond degree** at high β was mostly lockstep: grqc +0.082 → +0.007;
+  negative at f = 0.1 on Facebook (−0.032), astroph (−0.023), emaileu (−0.015).
+- Not in the scan: WS (clustering), A > 1, β = 3.
 
 ## Checks
 
@@ -284,8 +329,11 @@ src/
   run.py            the sweep -> results/sweep_runs.csv (--more: extension -> sweep_more_runs.csv;
                     --desync: high-beta check, half the players update per round -> sweep_desync_runs.csv)
   analyze.py        diagnostics, contrasts, node level -> results/sweep_*
+  band_test.py      hub defection vs the band rule -> results/band_test.csv
+  async_scan.py     update fraction 1-0.1 at equal updates per player -> results/async_scan_*
   plot_graphs.py    network drawings -> graphs/
-results/            sweep_runs.csv (90,000 runs), sweep_more_runs.csv (330,000 runs), tables and figures
+results/            sweep_runs.csv (90,000 runs), sweep_more_runs.csv (330,000 runs),
+                    sweep_desync_runs.csv (84,000), async_scan_runs.csv (12,000), tables and figures
 ```
 
 Python 3.12+ (tested on 3.14). From the project root:
@@ -304,6 +352,10 @@ python src/analyze.py
 `python src/analyze.py --desync` puts every contrast and the node-level degree correlation
 next to its synchronous value. Test first: `python src/run.py --test --desync` (needs
 `--test` without `--desync` first), then `python src/analyze.py --test --desync`.
+
+**Async scan**: `python src/async_scan.py --processes 12` (~2.5 h on 12 cores; restartable,
+skips finished runs), then `python src/async_scan.py --analyze`. Test: `--test`, then
+`--test --analyze`.
 
 `python src/run.py` reruns the full sweep (~6 h on 12 cores; it skips runs already in
 `results/sweep_runs.csv`, so delete or rename that file first). Per-node results

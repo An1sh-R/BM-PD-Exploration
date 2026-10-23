@@ -1,0 +1,205 @@
+ASYNC SCAN: REPORT
+2026-10-23
+
+The desync check (each player updates with probability 0.5) shrank most high-beta effects,
+but it changed two things at once: it broke the lockstep and it halved each player's
+updates. The async scan separates them. Result: the drop comes from breaking the lockstep.
+With no lockstep the fixed-partner effect is about 0, and at beta >= 10 slightly negative.
+Hub defection (C1), keeping one's degree at low beta and the benefit of uneven degrees
+survive. Main regime throughout: A <= 1 (a cooperator can be satisfied).
+
+Every number below was recomputed from results/async_scan_runs.csv.
+
+
+1. WHAT WAS RUN
+---------------
+
+Mentor's script (src/async_scan.py). update_fraction f = 1, 0.5, 0.25, 0.1: each round a
+player updates its cooperation probability with probability f; everyone still plays every
+round. Runs last 1,500/f rounds (window = last 500/f), so every player gets about 1,500
+updates at every f. A smaller f removes the lockstep, not learning time. f = 0.1 = about
+one player in ten updates per round.
+
+Grid: 10 networks x 5 graph types (real, degseq, samedeg, shuffled, ER) x f {1, 0.5,
+0.25, 0.1} x beta {1, 10, 100} x a {0.2, 0.4} x b {1.5, 2.0} x 5 reps = 12,000 runs,
+all with A <= 1. 154 min on 12 processes. Same seeds as the earlier sweeps.
+
+Changes made to the script before any run (no extra runs):
+  - Node cooperation (for the hub-defection rho) is sampled every 1/f rounds, so every
+    player contributes about 500 actions at every f. Averaging all 500/f window rounds
+    would give 10x less noise at f = 0.1, and less noise alone makes rho look stronger.
+    Measurement only (fast_model.run_bm record_every); no rule change.
+  - Extra columns: drift, mean_p (did the long runs settle) and cooperation over rounds
+    1,000-1,500 (to compare with the desync sweep).
+
+Checks:
+  - Before launch: 20/20 unit tests; numpy vs Mesa model 13/13 cells; 30 old runs and 6
+    node files reproduced bit-identically with the new sampling option.
+  - f = 1 equals the synchronous sweeps bit-identically: 3,000 of 3,000 runs
+    (cooperation, drift, oscillation gap and mean p).
+  - f = 0.5, rounds 1,000-1,500, equals the desync sweep bit-identically: 3,000 of 3,000.
+  - Settling: |drift| > 0.01 in 0.3% of runs at f = 0.5, 0.2% at f = 0.25, 0.3% at f = 0.1
+    (worst: emaileu degseq, beta = 100). Period-2 oscillation (gap > 0.01): 15% of runs at
+    f = 1, 5.5% at f = 0.5, none at f <= 0.25.
+
+Contrasts: per network, mean over the 4 (b, a) cells, 95% CI over the 5 reps (for degseq
+each rep is its own rewiring). Share kept = value at f / value at f = 1 per network,
+where |value at f = 1| >= 0.005; medians over networks. The f = 1 values are over this
+scan's 4 cells only, so they differ from the full-regime sync tables in README.md.
+
+Mean cooperation (all 10 networks):
+
+  graph type  beta   f = 1   0.5    0.25   0.1
+  real          1    0.387  0.379  0.376  0.374
+  real         10    0.460  0.402  0.383  0.374
+  real        100    0.472  0.407  0.384  0.373
+  samedeg     100    0.423  0.386  0.384  0.384
+  shuffled    100    0.401  0.381  0.381  0.381
+  ER          100    0.400  0.347  0.334  0.328
+
+The rise of cooperation with beta on real networks is itself a lockstep effect: at
+f = 0.1 real cooperation is 0.373-0.374 at every beta.
+
+
+2. H9: PREDICTION VS OUTCOME
+----------------------------
+
+H9 was written before the runs (ResearchQ/question.md).
+
+(a) Checks: f = 1 reproduces sync, f = 0.5 reproduces desync. HOLDS (both 3,000/3,000,
+    bit-identical).
+(b) Fixed partners (real - samedeg) shrink towards 0 as f falls, at beta = 10 and 100.
+    HOLDS, more strongly than predicted: about 0 by f = 0.25 and slightly negative at
+    f = 0.1. It also shrinks at beta = 1.
+(c) Hub defection and the degree effects show no trend towards 0. HOLDS for hub defection
+    and degree spread (exception: Facebook at beta = 100). Keeping one's degree: no change
+    at beta = 1; at beta >= 10 most of its sync size goes by f = 0.5, then flat.
+    Not predicted: structure beyond degree (real - degseq) at high beta is mostly
+    lockstep too.
+(d) If (b) holds at equal updates, the desync drop comes from the lockstep, not from fewer
+    updates. HOLDS: at f = 0.5 the partner effect is the same after about 750 updates
+    (rounds 1,000-1,500 = the desync sweep) and about 1,500 updates (the scan's window):
+    at most 0.006 apart on every network and beta.
+
+
+3. C2: FIXED PARTNERS
+---------------------
+
+Fixed partners only (real - samedeg):
+
+  beta   f = 1 range        kept at f = 0.5   0.25   0.1    f = 0.1 range
+    1    +0.010 to +0.024        53%          33%    23%    -0.002 to +0.007
+   10    -0.020 to +0.126        28%           1%   -12%    -0.017 to  0.000
+  100    -0.029 to +0.131        26%           4%   -14%    -0.019 to +0.004
+
+At f = 0.1, beta = 100 (f = 1 value in brackets):
+  negative, CIs exclude 0: deezer -0.019 (+0.058), gnutella -0.019 (+0.034), lastfm
+    -0.019 (+0.064), twitch -0.018 (+0.030), astroph -0.016 (+0.084), emaileu -0.013
+    (-0.029), grqc -0.012 (+0.131)
+  about 0: asinternet +0.004 (+0.023), GitHub +0.003 (+0.015), Facebook -0.002 (+0.083)
+At beta = 10, f = 0.1: -0.012 to -0.017 on astroph, deezer, gnutella, grqc, lastfm,
+twitch; emaileu -0.007, Facebook -0.006; asinternet and GitHub 0.000.
+
+CIs at f = 0.1 are 0.0001-0.0007 for the negative values (largest: GitHub 0.008).
+
+Keeping one's degree (samedeg - shuffled):
+  - beta = 1: identical at every f (asinternet +0.039, GitHub +0.033, Twitch +0.021,
+    emaileu +0.014, others +0.001 to +0.008).
+  - beta >= 10: sync up to +0.093 (emaileu, beta = 100); 11-20% kept (median) at f = 0.1,
+    at most +0.011.
+
+Fixed seats overall (real - shuffled), f = 0.1: at beta = 1 still +0.010 to +0.039 on 6
+of 10 (asinternet +0.039, GitHub +0.039, Twitch +0.025, emaileu +0.019, Facebook +0.014,
+astroph +0.011), mostly from keeping one's degree. At beta = 10 and 100, -0.025 to +0.009
+(about -0.01 to -0.02 on 6-7 networks).
+
+So the earlier statement "fixed partners help, more so at high beta" holds only with
+synchronous updating. Why fixed partners slightly lower cooperation without lockstep has
+not been studied.
+
+
+4. C3: DEGREES AND STRUCTURE BEYOND DEGREE
+------------------------------------------
+
+Degree spread (degseq - ER):
+
+  beta   f = 1 range        kept at f = 0.5   0.25   0.1    f = 0.1 range
+    1    +0.043 to +0.080        97%          96%    95%    +0.041 to +0.076
+   10    +0.051 to +0.087        86%          81%    77%    +0.033 to +0.072
+  100    +0.028 to +0.095        88%          84%    81%    -0.001 to +0.070
+
+Positive and >= 0.01 on all 10 at f = 0.1, except Facebook at beta = 100 (+0.028 at f = 1,
++0.005 at f = 0.5, -0.001 at f = 0.1).
+
+Structure beyond the degree sequence (real - degseq):
+  - beta = 1: within -0.010 to +0.014 at every f.
+  - beta = 100: median kept 44% (f = 0.5), 23% (0.25), 8% (0.1). grqc +0.082 -> +0.007,
+    astroph +0.045 -> -0.023, Facebook -0.000 -> -0.032, emaileu -0.030 -> -0.015,
+    asinternet -0.029 -> +0.010, GitHub -0.003 -> +0.010.
+  - The high-beta co-authorship effect (grqc, astroph) was a lockstep effect.
+
+Clustering (WS - ER) is not in the scan. Under desync it kept >= 0.01 only on grqc,
+astroph and Facebook. Since real - degseq on those three vanishes or turns negative by
+f = 0.1, the remaining clustering effect is probably lockstep too. Untested.
+
+
+5. C1: LOW-DEGREE PLAYERS COOPERATE MORE THAN HUBS
+--------------------------------------------------
+
+Spearman(node cooperation, degree), real graphs, mean over 4 cells x 5 reps:
+
+  network      beta=1: f=1   f=0.1    beta=10: f=1  f=0.1    beta=100: f=1  f=0.1
+  asinternet      -0.61     -0.52          -0.51    -0.53           -0.43    -0.48
+  astroph         -0.85     -0.72          -0.47    -0.47           -0.27    -0.30
+  deezer          -0.89     -0.83          -0.68    -0.66           -0.56    -0.56
+  emaileu         -0.81     -0.71          -0.47    -0.51           -0.10    -0.36
+  facebook        -0.76     -0.61          +0.08    -0.36           +0.22    -0.05
+  github          -0.64     -0.56          -0.55    -0.47           -0.33    -0.38
+  gnutella        -0.82     -0.78          -0.73    -0.70           -0.63    -0.64
+  grqc            -0.89     -0.82          -0.35    -0.58           -0.28    -0.47
+  lastfm          -0.88     -0.82          -0.63    -0.66           -0.52    -0.57
+  twitch          -0.78     -0.70          -0.65    -0.61           -0.51    -0.50
+
+- beta = 1: 80-94% of the f = 1 size kept at f = 0.1, and flattening (f = 0.1 is 96% of
+  f = 0.5, median).
+- beta >= 10: at least 85% kept (Facebook aside); more negative than sync on 6 of 10
+  networks at beta = 10 and 9 of 10 at beta = 100 (Facebook, emaileu and grqc by far).
+- Facebook at beta = 100: about -0.05 at every f < 1 (CI 0.015-0.07), so no clear hub
+  defection there, but also not the sync reversal (+0.22).
+- Node rho uses 5 reps here (the sync node level used rep 0 only).
+
+
+6. CLAIM REVISIONS (applied 2026-10-23 in ResearchQ/question.md and README.md)
+------------------------------------------------------------------------------
+
+C1  Unchanged in substance; now "robust to desync and to the async scan". Adds the
+    f = 0.1 ranges and Facebook at beta = 100 as the exception.
+C2  Before: fixed partners help on all 10 networks, but how much depends on synchronous
+    updating.
+    Now: fixed partners help only when players update in lockstep (about 0 at beta = 1,
+    slightly negative at beta >= 10 once the lockstep is removed). Keeping one's degree
+    helps at low beta, robustly (asinternet, GitHub, Twitch, emaileu). The open question
+    "lockstep or fewer updates?" is answered: lockstep.
+C3  Before: uneven degrees help, robustly; at high beta clustering adds cooperation only on
+    the most clustered networks.
+    Now: uneven degrees help, robustly. Beyond the degree sequence, structure barely
+    matters once players do not update in lockstep (real - degseq at high beta mostly
+    lockstep; clustering untested here).
+
+
+7. CAVEATS
+----------
+
+- A <= 1 only, 4 (b, a) cells. A > 1 (where the hub reversal and the negative partner
+  effect under desync were seen) is not in the scan.
+- WS (clustering), BA and beta = 3 are not in the grid.
+- beta = 1 has 4 cells x 5 reps; small effects there (<= 0.007) are near the reporting
+  threshold of 0.01.
+- ER is one graph per network: its CIs hold run noise only.
+- f = 0.1 is still not one-player-at-a-time (about 10% of players update together each
+  round). The trends from f = 0.5 to 0.1 are smooth, so a fully sequential run would most
+  likely push further in the same direction.
+
+Files: results/async_scan_runs.csv (12,000 runs), results/async_scan_contrasts.csv/.png
+(contrasts and rho by f), ResearchQ/question.md (H9, claims), src/async_scan.py.
+Code and data: https://github.com/An1sh-R/BM-PD-Exploration
