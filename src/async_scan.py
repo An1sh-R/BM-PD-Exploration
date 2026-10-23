@@ -11,17 +11,17 @@ removes the lockstep, not learning time.
 
 Grid: 10 networks x 5 graph types (real, degseq, samedeg, shuffled, er)
       x update_fraction {1, 0.5, 0.25, 0.1} x beta {1, 10, 100} x a {0.2, 0.4}
-      x b {1.5, 2.0} x 5 reps = 24,000 runs (all in regime A <= 1).
+      x b {1.5, 2.0} x 5 reps = 12,000 runs (all in regime A <= 1; was written as 24,000).
 Small f means long runs (f = 0.1 -> 15,000 rounds). Each round costs the same whatever f
-is, so per setting the four fractions cost 1 + 2 + 4 + 10 = 17 normal runs: about 102,000
-normal 1,500-round runs in total (corrected 2026-10-23; ~5-7 h on 12 processes).
+is, so per setting the four fractions cost 1 + 2 + 4 + 10 = 17 normal runs: 3,000 settings x 17
+= about 51,000 normal 1,500-round runs in total (~2.5-3.5 h on 12 processes).
 
 
 Safe to stop and restart: finished runs are skipped.
 
 Mentor's script (received 2026-10-23); changed here before any run, same grid and runs:
 node cooperation sampled every 1/f rounds (fast_model record_every), extra columns
-drift, mean_p, cooperation_1000_1500, cost line corrected. See ResearchQ/design.md.
+drift, mean_p, cooperation_1000_1500, run count corrected to 12,000. See ResearchQ/design.md.
 """
 import csv
 import os
