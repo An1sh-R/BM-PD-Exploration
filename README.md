@@ -298,6 +298,29 @@ values are over this scan's 4 (b, a) cells, so they differ from the tables above
   negative at f = 0.1 on Facebook (−0.032), astroph (−0.023), emaileu (−0.015).
 - Not in the scan: WS (clustering), A > 1, β = 3.
 
+## Extra scans (2026-10-24, not run yet)
+
+`src/extra_scans.py` (mentor). Two runs reviewers will ask for:
+
+- `--regimes`: the async-scan design (update fraction 1, 0.5, 0.25, 0.1 at equal updates per
+  player) for regime **A > 1** (6 graph types incl. WS) and for **WS in the A ≤ 1 cells**
+  (clustering = WS − ER). 16,800 runs, ~3.5 h on 12 processes.
+- `--sequential`: **fully asynchronous updating**, one player at a time
+  (`fast_model.run_bm_sequential`), 8 networks, β = 1 and 100, A ≤ 1 and A > 1 cells,
+  3 reps. 864 runs, ~3.7 h on 12 processes. Checked against update fraction 0.05
+  (`python src/check_fast_model.py --sequential`).
+
+```
+python src/extra_scans.py --regimes --test --processes 4
+python src/extra_scans.py --sequential --test --processes 4
+python src/extra_scans.py --regimes --processes 12
+python src/extra_scans.py --sequential --processes 12
+python src/extra_scans.py --regimes --analyze
+python src/extra_scans.py --sequential --analyze
+```
+
+Prediction H10 in `ResearchQ/question.md`.
+
 ## Checks
 
 - `src/test_model.py`: unit checks of the Mesa reference model (20 checks).

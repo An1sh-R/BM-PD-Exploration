@@ -9,6 +9,8 @@ checks that the two agree.
 Random numbers are drawn differently from the Mesa version, so the same seed gives
 a different run. Averages over seeds must match, single runs will not.
 """
+import math
+
 import networkx as nx
 import numpy as np
 
@@ -109,4 +111,101 @@ def run_bm(A, degree, b, beta, aspiration, epsilon, steps, record_from=0,
             coop_rounds = coop_rounds[new_order]
 
     node_cooperation = coop_rounds / rounds_counted
+    return curve, p, node_cooperation
+
+
+def run_bm_sequential(A, degree, b, beta, aspiration, epsilon, sweeps, record_from=0,
+                      initial_coop=0.5, seating="fixed", seat_groups=None, seed=None):
+    """BM with fully asynchronous updating: one player at a time (added 2026-10-24).
+
+    A sweep = n single updates; each update: pick a random player, it and its partners
+    act (partners from their current p), it gets its average payoff and updates its p.
+    Nobody else changes p in between, so no two players ever update together. This is
+    the limit of run_bm's update_fraction -> 0 (there, everyone acts every round but
+    almost nobody updates). Time is counted in sweeps: ~1 update per player per sweep,
+    so 1,500 sweeps = the same learning as 1,500 synchronous rounds.
+
+    seating: "fixed" (static network), "full" (re-seated at random before every update:
+    a random seat, partners = random players) or "samedeg" (a random seat in the player's
+    own degree group; each partner a random player from that seat's group). These are
+    the update_fraction -> 0 limits of shuffle_seats without / with seat_groups.
+
+    Recording: at the end of every sweep everyone acts once (one sampled action per player),
+    as async_scan.py samples every 1/f rounds.
+    Returns curve (cooperation per sweep), p, node_cooperation (per player).
+    """
+    rng = np.random.default_rng(seed)
+    n = A.shape[0]
+    starts = A.indptr
+    neighbour_seats = A.indices
+    # samedeg: group_of[seat] = its degree group; all groups' members in one array,
+    # group g = all_members[group_start[g] : group_start[g] + group_size[g]]
+    group_of = np.zeros(n, dtype=int)
+    group_members = []
+    all_members = np.zeros(0, dtype=int)
+    group_start = np.zeros(0, dtype=int)
+    group_size = np.zeros(0, dtype=int)
+    if seating == "samedeg":
+        for g, group in enumerate(seat_groups):
+            members = np.array(group)
+            group_members.append(members)
+            group_of[members] = g
+        all_members = np.concatenate(group_members)
+        group_size = np.array([len(members) for members in group_members])
+        group_start = np.concatenate([[0], np.cumsum(group_size)[:-1]])
+    p = np.full(n, float(initial_coop))
+    coop_rounds = np.zeros(n)
+    sweeps_counted = 0
+    curve = np.zeros(sweeps)
+
+    for sweep in range(sweeps):
+        for player in rng.integers(n, size=n):
+            # where the player sits for this update
+            if seating == "fixed":
+                seat = player
+            elif seating == "full":
+                seat = rng.integers(n)
+            else:
+                own_group = group_members[group_of[player]]
+                seat = own_group[rng.integers(len(own_group))]
+            seats_next_door = neighbour_seats[starts[seat]:starts[seat + 1]]
+            # who sits next door
+            if seating == "fixed":
+                partners = seats_next_door
+            elif seating == "full":
+                partners = rng.integers(n, size=len(seats_next_door))
+            else:
+                # each seat next door holds a random player from that seat's degree group
+                groups_next_door = group_of[seats_next_door]
+                pick = (rng.random(len(seats_next_door)) * group_size[groups_next_door]).astype(int)
+                partners = all_members[group_start[groups_next_door] + pick]
+            partner_p = p[partners]
+            partner_coop = rng.random(len(partners)) < (1 - epsilon) * partner_p + epsilon * (1 - partner_p)
+            n_coop = int(partner_coop.sum())
+            own_p = p[player]
+            cooperated = rng.random() < (1 - epsilon) * own_p + epsilon * (1 - own_p)
+            if cooperated:
+                payoff = n_coop / len(partners)
+            else:
+                payoff = n_coop * b / len(partners)
+            stimulus = math.tanh(beta * (payoff - aspiration))
+            # same four cases as bm_update
+            if cooperated:
+                if stimulus >= 0:
+                    p[player] = own_p + (1 - own_p) * stimulus
+                else:
+                    p[player] = own_p + own_p * stimulus
+            else:
+                if stimulus >= 0:
+                    p[player] = own_p - own_p * stimulus
+                else:
+                    p[player] = own_p - (1 - own_p) * stimulus
+        # record: everyone acts once
+        actions = rng.random(n) < (1 - epsilon) * p + epsilon * (1 - p)
+        curve[sweep] = actions.mean()
+        if sweep >= record_from:
+            sweeps_counted += 1
+            coop_rounds += actions
+
+    node_cooperation = coop_rounds / max(sweeps_counted, 1)
     return curve, p, node_cooperation

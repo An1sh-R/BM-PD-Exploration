@@ -10,11 +10,12 @@ Output: results/fast_model_check.csv
 import csv
 import os
 import random
+import sys
 
 import numpy as np
 from scipy.stats import ttest_ind
 
-from fast_model import bm_update, neighbour_matrix, run_bm, weak_pd_payoffs
+from fast_model import bm_update, neighbour_matrix, run_bm, run_bm_sequential, weak_pd_payoffs
 from model import CooperationModel
 from networks import RESULTS_DIR, load_graph, same_degree_groups
 
@@ -151,6 +152,49 @@ def compare_runs(G, A, degree, cells, update_fraction=1.0):
     return rows
 
 
+def check_sequential_limit():
+    """run_bm_sequential (one player at a time) must equal run_bm's update_fraction -> 0
+    limit. Compared with update_fraction = 0.05 at equal updates per player, on emaileu
+    (small, so 0.05 is affordable), 3 seatings x beta {1, 100}, 8 seeds each (~5 min).
+    Added 2026-10-24 with extra_scans.py --sequential."""
+    G = load_graph("emaileu")
+    A, degree = neighbour_matrix(G)
+    groups = same_degree_groups(G)
+    sweeps = 600
+    window = 200
+    fraction = 0.05
+    rows = []
+    for beta in [1.0, 100.0]:
+        for seating in ["fixed", "samedeg", "full"]:
+            seat_groups = None
+            if seating == "samedeg":
+                seat_groups = groups
+            limit_values = []
+            sequential_values = []
+            for seed in range(8):
+                steps = int(round(sweeps / fraction))
+                curve, p, nodes = run_bm(A, degree, 1.5, beta, 0.6, EPSILON, steps,
+                                         shuffle_seats=seating != "fixed", seat_groups=seat_groups,
+                                         update_fraction=fraction, seed=seed)
+                limit_values.append(curve[-int(round(window / fraction)):].mean())
+                curve, p, nodes = run_bm_sequential(A, degree, 1.5, beta, 0.6, EPSILON, sweeps,
+                                                    seating=seating, seat_groups=groups, seed=seed)
+                sequential_values.append(curve[-window:].mean())
+            p_value = ttest_ind(limit_values, sequential_values, equal_var=False).pvalue
+            row = {"beta": beta, "seating": seating,
+                   "update_fraction_0.05": round(float(np.mean(limit_values)), 4),
+                   "one_at_a_time": round(float(np.mean(sequential_values)), 4),
+                   "difference": round(float(np.mean(sequential_values) - np.mean(limit_values)), 4),
+                   "p_value": round(float(p_value), 3), "agree": bool(p_value > 0.01)}
+            print(row)
+            rows.append(row)
+    n_agree = 0
+    for row in rows:
+        if row["agree"]:
+            n_agree += 1
+    print(f"one at a time vs update_fraction 0.05: {n_agree}/{len(rows)} cells agree (p > 0.01)")
+
+
 def main():
     G = load_graph(GRAPH)
     A, degree = neighbour_matrix(G)
@@ -176,4 +220,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--sequential" in sys.argv:
+        check_sequential_limit()  # python src/check_fast_model.py --sequential
+    else:
+        main()

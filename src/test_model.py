@@ -262,6 +262,30 @@ def test_update_fraction_one_is_synchronous_model():
     assert first.datacollector.model_vars["cooperation"] == second.datacollector.model_vars["cooperation"]
 
 
+def test_sequential_beta_zero_never_changes_p():
+    # beta = 0: stimulus is always 0, so one-at-a-time updates leave every p at its start
+    from fast_model import neighbour_matrix, run_bm_sequential
+    G = nx.random_regular_graph(4, 50, seed=2)
+    A, degree = neighbour_matrix(G)
+    for seating in ["fixed", "full", "samedeg"]:
+        curve, p, nodes = run_bm_sequential(A, degree, 1.5, 0.0, 0.5, 0.05, 5, seating=seating,
+                                            seat_groups=same_degree_groups(G), seed=1)
+        assert all(close(value, 0.5) for value in p)
+
+
+def test_sequential_keeps_p_inside_0_1():
+    from fast_model import neighbour_matrix, run_bm_sequential
+    G = nx.barabasi_albert_graph(80, 2, seed=3)
+    A, degree = neighbour_matrix(G)
+    for seating in ["fixed", "full", "samedeg"]:
+        curve, p, nodes = run_bm_sequential(A, degree, 1.5, 100.0, 0.6, 0.05, 30, record_from=10,
+                                            seating=seating, seat_groups=same_degree_groups(G), seed=4)
+        # at beta = 100 tanh rounds to exactly 1, so p can reach 0 or 1 (as in run_bm)
+        assert all(0 <= value <= 1 for value in p)
+        assert len(curve) == 30 and len(nodes) == 80
+        assert all(0 <= value <= 1 for value in nodes)
+
+
 def test_bad_arguments_rejected():
     G = nx.path_graph(2)
     for kwargs in [{"agent_type": "q-learning"}, {"agent_type": "fermi", "payoff_scheme": "total"},
