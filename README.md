@@ -325,31 +325,38 @@ Checks: all runs present; f = 1 equals the synchronous sweeps in 4,200 of 4,200 
 | | A > 1 | 100 | −0.004 to +0.005 | −0.041 to −0.020 | −0.041 to −0.018 |
 | WS − ER (clustering) | A ≤ 1 | 100 | +0.001 to +0.170 | −0.025 to +0.016 | −0.027 to +0.009 |
 | Spearman(cooperation, degree), real | A ≤ 1 | 100 | −0.68 to +0.24 | −0.65 to −0.18 | −0.64 to −0.14 |
-| | A > 1 | 1 | −0.63 to −0.23 | −0.31 to +0.10 | +0.01 to +0.27 |
+| | A > 1 (4 cells) | 1 | −0.63 to −0.23 | −0.31 to +0.10 | — |
+| | A > 1, cell (2.0, 0.7) | 1 | −0.48 to −0.13 | −0.01 to +0.26 | +0.01 to +0.27 |
 | | A > 1 | 100 | +0.10 to +0.68 | +0.62 to +0.78 | +0.51 to +0.85 |
 
 Ranges over networks. A > 1 rows with f = 1 and f = 0.1 are from `--regimes` (10 networks,
 4 cells); all other rows, and the one-at-a-time column, use the `--sequential` cells
-(8 networks) so the three columns compare the same settings.
+(8 networks) so the three columns compare the same settings. One at a time covers only
+the A > 1 cell (2.0, 0.7); on that cell f = 0.1 matches it within 0.003 (contrasts) and
+0.02 (ρ, β = 100).
 
 - **Fixed partners (C2)** without lockstep: ≈ 0 at β = 1, negative at β = 100 on all 8
   (one at a time is more negative than f = 0.1 on 4 of 8 networks by > 0.005).
 - **A > 1**: fixed seats and uneven degrees *lower* cooperation at high β on every network,
   more so as f falls; synchronously both were ≈ 0. The hub reversal (hubs cooperate more) is
-  stronger without lockstep and one at a time already shows at β = 1 (7 of 8 networks).
+  stronger without lockstep at β ≥ 10. At β = 1 its sign depends on the cell, not the update
+  scheme: positive at the largest A, (2.0, 0.7), at f = 0.1 and one at a time alike; the
+  4-cell mean at f = 0.1 is negative on 7 of 10.
 - **Hubs defect (C1)** at A ≤ 1 on all 8 one at a time, including Facebook at β = 100
   (−0.14; synchronous +0.24 on these cells).
 - **Clustering (C3)** at high β was lockstep: at f = 0.1, |WS − ER| < 0.01 on 7 of 10
-  (10-network `--regimes` runs). grqc keeps +0.045 but is still falling (+0.009 one at a
-  time); Facebook (−0.061) and asinternet (−0.032) come from the a = 0.2 cells, where WS
-  and ER settle in different states, not from a general clustering effect.
+  (10-network `--regimes` runs). The three exceptions, grqc (+0.045), Facebook (−0.061) and
+  asinternet (−0.032), all come from a = 0.2 cells where WS and ER settle in different
+  states, not from a general clustering effect (grqc (1.5, 0.2): WS 0.473, ER 0.334; grqc is
+  also still falling with f, +0.009 one at a time).
 
 ## Checks
 
-- `src/test_model.py`: unit checks of the Mesa reference model (20 checks).
+- `src/test_model.py`: unit checks of the Mesa reference model (22 checks).
 - `src/check_fast_model.py`: the numpy engine used for the sweep (`fast_model.py`) against
   the Mesa reference (`model.py`): exact update rules + 20-seed run comparison
-  (`results/fast_model_check.csv`).
+  (`results/fast_model_check.csv`). `--sequential`: the one-at-a-time engine against
+  update fraction 0.05 at equal updates per player (emaileu, 6 cells).
 - `src/validate_bm.py`: reproduces the qualitative results of Ezaki & Masuda 2017 (rings,
   static vs shuffled partners; `results/validate_bm.png`).
 - `src/pilot.py`: coarse β × A × b scan on LastFM used to choose the grid (`results/pilot_*`).

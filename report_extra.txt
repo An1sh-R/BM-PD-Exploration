@@ -67,7 +67,9 @@ H10 was written before the runs (ResearchQ/question.md).
     beta = 1 hold.
 (b) A > 1 without lockstep: fixed seats and degree spread negative at beta = 100, hub
     reversal positive, none shrinking as f falls.
-    HOLDS, more strongly: all three grow as f falls, on all 10 networks.
+    HOLDS, more strongly: fixed seats and degree spread get more negative as f falls on
+    all 10 networks; the hub reversal grows on all 10 at beta = 10 and at beta = 100 is
+    flat from f = 0.5 down (+0.62 to +0.78).
 (c) Clustering, A <= 1: at beta = 100 shrinks with f, below 0.01 at f = 0.1 on at least
     8 of 10; at beta = 1 within +/-0.01.
     PARTLY. Below 0.01 counting the sign on 9 of 10, by absolute size on 7 of 10 (grqc
@@ -144,9 +146,16 @@ Hub reversal (hubs cooperate more), Spearman(cooperation, degree), real graphs:
   beta = 10 columns: --regimes (4 cells, 5 reps). One-at-a-time columns: cell (2.0, 0.7),
   3 reps. Node-level rho, no CIs per network beyond the reps.
 
-- The reversal is not a lockstep effect; lockstep weakened it. At f = 0.1 it is positive
-  on all 10 at beta = 10 (+0.51 to +0.73) and beta = 100 (+0.62 to +0.78). One at a time
-  it already shows at beta = 1 on 7 of 8 networks (+0.18 to +0.27; asinternet +0.01).
+- At beta >= 10 the reversal is not a lockstep effect; lockstep weakened it. At f = 0.1
+  it is positive on all 10 at beta = 10 (+0.51 to +0.73) and beta = 100 (+0.62 to +0.78).
+- At beta = 1 its sign depends on the cell, not on the update scheme. On the one-at-a-time
+  cell (2.0, 0.7), the largest A, it is positive on 7 of 8 networks both one at a time
+  (+0.18 to +0.27; asinternet +0.01) and at f = 0.1 (+0.14 to +0.26; asinternet -0.005).
+  Over the 4 A > 1 cells at f = 0.1 it is negative on 7 of 10. Median over networks at
+  f = 0.1, beta = 1: (1.7, 0.6) -0.29, (2.0, 0.6) -0.18, (1.7, 0.7) +0.01, (2.0, 0.7) +0.18.
+- One at a time vs f = 0.1 on the same cell (2.0, 0.7): contrasts within 0.003, rho within
+  0.02 at beta = 100. The one-at-a-time columns differ from the f = 0.1 columns above
+  mainly because they are one cell, not four.
 
 
 5. C3: CLUSTERING (WS - ER), A <= 1
@@ -167,12 +176,15 @@ Hub reversal (hubs cooperate more), Spearman(cooperation, degree), real graphs:
   twitch               +0.017  +0.007  +0.000  -0.002          -0.004
 
 - The high-beta clustering benefit was lockstep: |WS - ER| < 0.01 at f = 0.1 on 7 of 10.
-- grqc keeps +0.045 at f = 0.1 but is still falling with f; one at a time it is +0.009
-  on its 2 cells (f = 0.1 on the same cells: +0.016).
-- Facebook (-0.061) and asinternet (-0.032) are not a general clustering effect. They come
-  from the a = 0.2 cells, where WS and ER settle in different states: Facebook at
-  (b, a) = (1.5, 0.2), f = 0.1: ER 0.484, WS 0.231; the other three cells differ by
-  <= 0.006. A mean over 4 cells hides such switches; ER and WS are one graph each.
+- The three networks with |WS - ER| >= 0.01 at f = 0.1 (grqc +0.045, Facebook -0.061,
+  asinternet -0.032) are not a general clustering effect. Each comes from a = 0.2 cells,
+  where WS and ER settle in different states (f = 0.1, beta = 100):
+    grqc (1.5, 0.2): WS 0.473, ER 0.334 (+0.139); other three cells +0.006 to +0.025.
+    Facebook (1.5, 0.2): WS 0.231, ER 0.484 (-0.253); other three cells within 0.006.
+    asinternet (1.5, 0.2) -0.074, (2.0, 0.2) -0.047; a = 0.4 cells -0.003, -0.005.
+- grqc is also still falling with f; one at a time it is +0.009 on its 2 cells (f = 0.1
+  on the same cells: +0.016). A mean over 4 cells hides such switches; ER and WS are one
+  graph each.
 
 
 6. C1 AND DEGREE SPREAD AT A <= 1, ONE AT A TIME
@@ -202,8 +214,8 @@ Spearman(cooperation, degree), real graphs, --sequential cells (sync, f = 0.1, o
 ------------------------------------------------------------------------------
 
 C1  Now: robust to every update scheme tested. Facebook's beta = 100 exception was
-    lockstep. A > 1: the reversal is not lockstep (stronger without it; one at a time
-    already at beta = 1).
+    lockstep. A > 1: the reversal is not lockstep (stronger without it at beta >= 10;
+    at beta = 1 its sign depends on the cell).
 C2  Before: fixed partners help only in lockstep.
     Now: without lockstep they are neutral at beta = 1 and lower cooperation at high beta
     (one at a time -0.007 to -0.034 at beta = 100). At A > 1 fixed seats lower cooperation
@@ -213,7 +225,8 @@ C3  Before: uneven degrees help, robustly; structure beyond degree barely matter
     Now: uneven degrees help at A <= 1 and lower cooperation at A > 1, beta >= 10.
     Structure beyond degree has no consistent effect without lockstep (f = 0.1: -0.032 to
     +0.019; one at a time -0.010 to +0.016), reworded from "barely matters". The
-    high-beta clustering benefit was lockstep (grqc residual shrinking).
+    high-beta clustering benefit was lockstep (the remaining |WS - ER| >= 0.01, grqc
+    included, are state switches in a = 0.2 cells).
 
 
 8. CAVEATS
@@ -223,8 +236,10 @@ C3  Before: uneven degrees help, robustly; structure beyond degree barely matter
 - A > 1 cells are b 1.7/2.0 x a 0.6/0.7 only. At beta = 100 there updates are all or
   nothing (p -> 0 or 1) and a defector needs >= a of its neighbours cooperating, so the
   dynamics are mostly noise-driven; some contrasts are near 0 by construction.
-- Means over 4 (b, a) cells can hide state switches in single cells (Facebook and
+- Means over 4 (b, a) cells can hide state switches in single cells (grqc, Facebook and
   asinternet clustering).
+- One at a time covers a single A > 1 cell, (2.0, 0.7): compare it with f = 0.1 on that
+  cell, not with the 4-cell means.
 - ER, WS are one graph each: CIs hold run noise only. Node-level rho: no CIs per network
   beyond the reps.
 - Why fixed partners lower cooperation without lockstep has not been studied.
