@@ -1,0 +1,235 @@
+EXTRA SCANS: REPORT
+2026-10-25
+
+The async scan (A <= 1, no WS, f down to 0.1) showed that the fixed-partner and structure
+effects came from players updating in lockstep. The extra scans close its three gaps:
+fully sequential updating (one player at a time), regime A > 1, and clustering (WS - ER).
+Result: without lockstep only degrees have a consistent effect. Hubs defect at A <= 1
+under every update scheme (the Facebook exception was lockstep too). Fixed partners are
+neutral at beta = 1 and lower cooperation at high beta. At A > 1 fixed seats and uneven
+degrees lower cooperation and the hub reversal gets stronger. The high-beta clustering
+benefit was lockstep.
+
+Every number below was recomputed from results/extra_regimes_runs.csv and
+results/extra_sequential_runs.csv (and the async scan for the A <= 1 ER and f = 1, 0.1 runs).
+
+
+1. WHAT WAS RUN
+---------------
+
+Mentor's script (src/extra_scans.py, merged 2026-10-24).
+
+--regimes: the async-scan design (update fraction f = 1, 0.5, 0.25, 0.1; 1,500/f rounds,
+window 500/f, so every player gets about 1,500 updates at every f) for
+  - regime A > 1 (a cooperator can never be satisfied): b {1.7, 2.0} x a {0.6, 0.7},
+    graph types real, degseq, samedeg, shuffled, ER, WS;
+  - WS in the async scan's A <= 1 cells (b {1.5, 2.0} x a {0.2, 0.4}), paired with the
+    async scan's ER runs: clustering = WS - ER.
+  10 networks x beta {1, 10, 100} x 5 reps = 16,800 runs.
+
+--sequential: one player at a time (fast_model.run_bm_sequential). Each update: a random
+player and its partners act, the player gets its average payoff and updates; nobody else
+changes in between. 1,500 sweeps (about 1,500 updates per player), last 500 recorded.
+This is the f -> 0 limit. 8 networks (Deezer and GitHub too slow one at a time), 6 graph
+types, beta {1, 100}, cells (b, a) = (1.5, 0.4), (2.0, 0.2) [A <= 1] and (2.0, 0.7)
+[A > 1], 3 reps = 864 runs. The analysis compares each contrast with its f = 1 and
+f = 0.1 values on the same cells and reps.
+
+Checks:
+  - Before the runs: 22/22 unit tests; numpy vs Mesa 13/13 cells (output unchanged);
+    one at a time vs f = 0.05 at equal updates per player: 6/6 cells agree,
+    |difference| <= 0.0007 (emaileu, 3 seatings, beta 1 and 100, 8 seeds).
+  - f = 1 equals the synchronous sweeps bit-identically: 4,200 of 4,200 runs.
+  - All 16,800 + 864 runs present, no missing values. |drift| > 0.01 in at most 0.07% of
+    runs (none one at a time). Contrast 95% CIs <= 0.010 (regimes), <= 0.005 (one at a
+    time, 3 reps).
+
+Known difference from the f -> 0 limit: in the one-at-a-time shuffled and samedeg
+versions, partners are drawn independently, so a player can meet the same partner twice
+or itself (f < 1 uses a permutation). Small here: the f = 0.05 check passes.
+
+Mean cooperation, real graphs, A > 1 (f = 1 -> 0.1): 0.442 -> 0.423 at beta = 1,
+0.479 -> 0.429 at beta = 10, 0.476 -> 0.430 at beta = 100. As at A <= 1, the rise with
+beta is mostly lockstep.
+
+
+2. H10: PREDICTION VS OUTCOME
+-----------------------------
+
+H10 was written before the runs (ResearchQ/question.md).
+
+(a) One at a time: every contrast within 0.005 of f = 0.1.
+    PARTLY FAILS. Within 0.005 for degree spread, keeping one's degree, clustering
+    (max 0.007) and structure beyond degree (max 0.006). But fixed partners at A <= 1,
+    beta = 100 keep falling: 4 of 8 networks more than 0.005 below f = 0.1 (grqc -0.022 ->
+    -0.034). The conclusions (a) predicted still hold: fixed partners about 0 at beta = 1
+    and negative at beta = 100; hub defection, degree spread and keeping one's degree at
+    beta = 1 hold.
+(b) A > 1 without lockstep: fixed seats and degree spread negative at beta = 100, hub
+    reversal positive, none shrinking as f falls.
+    HOLDS, more strongly: all three grow as f falls, on all 10 networks.
+(c) Clustering, A <= 1: at beta = 100 shrinks with f, below 0.01 at f = 0.1 on at least
+    8 of 10; at beta = 1 within +/-0.01.
+    PARTLY. Below 0.01 counting the sign on 9 of 10, by absolute size on 7 of 10 (grqc
+    +0.045, Facebook -0.061, asinternet -0.032). beta = 1 within +/-0.01 except asinternet
+    (-0.014).
+
+
+3. C2: FIXED PARTNERS (A <= 1, one at a time)
+---------------------------------------------
+
+real - samedeg on the --sequential cells (sync -> f = 0.1 -> one at a time):
+
+  Network        beta = 1                      beta = 100
+  asinternet  +0.008 -0.002 -0.003         +0.032 -0.001 -0.007
+  astroph     +0.017 +0.004 +0.003         +0.089 -0.018 -0.024
+  emaileu     +0.011 +0.005 +0.005         -0.057 -0.010 -0.013
+  facebook    +0.013 +0.006 +0.005         +0.073 -0.011 -0.014
+  gnutella    +0.015 +0.007 +0.006         +0.032 -0.020 -0.024
+  grqc        +0.023 -0.001 -0.003         +0.155 -0.022 -0.034
+  lastfm      +0.017 +0.001 -0.001         +0.069 -0.022 -0.029
+  twitch      +0.017 +0.006 +0.004         +0.028 -0.016 -0.021
+
+- beta = 1: about 0 one at a time (-0.003 to +0.006), below the 0.01 reporting threshold.
+- beta = 100: negative on all 8 (-0.007 to -0.034), more negative than at f = 0.1. So
+  without lockstep, fixed partners lower cooperation at high beta. Why: not studied.
+- Keeping one's degree (samedeg - shuffled) at beta = 1 is unchanged one at a time
+  (asinternet +0.043, Twitch +0.024, emaileu +0.015); at beta = 100 +0.008 to +0.025 on
+  these 2 cells.
+
+
+4. A > 1: FIXED SEATS, DEGREE SPREAD, HUB REVERSAL
+--------------------------------------------------
+
+beta = 100, --regimes, 10 networks (f = 1 -> f = 0.1):
+
+  Network     real - shuffled     degseq - ER        Spearman(coop, degree)
+  asinternet  +0.010 -0.035       -0.002 -0.030      +0.68 +0.68
+  astroph     +0.001 -0.012       +0.005 -0.032      +0.10 +0.71
+  deezer      +0.004 -0.021       -0.003 -0.021      +0.37 +0.70
+  emaileu     +0.002 -0.014       +0.001 -0.032      +0.30 +0.74
+  facebook    +0.002 -0.005       -0.003 -0.023      +0.22 +0.62
+  github      +0.006 -0.023       +0.002 -0.041      +0.53 +0.71
+  gnutella    +0.003 -0.025       -0.004 -0.026      +0.53 +0.78
+  grqc        +0.004 -0.017       -0.002 -0.020      +0.33 +0.62
+  lastfm      +0.004 -0.022       -0.001 -0.028      +0.42 +0.72
+  twitch      +0.002 -0.023       +0.001 -0.032      +0.34 +0.70
+
+- Fixed seats (real - shuffled) lower cooperation on all 10 once the lockstep is gone:
+  beta = 10 -0.006 to -0.031, beta = 100 -0.005 to -0.035 at f = 0.1, more negative as f
+  falls. Both parts contribute at beta >= 10: fixed partners -0.003 to -0.015, keeping
+  one's degree -0.003 to -0.020. At beta = 1 about 0 (-0.003 to 0.000). One at a time:
+  real - shuffled -0.003 to -0.035 at beta = 100 (8 networks).
+- Uneven degrees (degseq - ER) lower cooperation at A > 1: f = 0.1 -0.014 to -0.034 at
+  beta = 10 and -0.020 to -0.041 at beta = 100, all 10 (sync -0.004 to +0.005). One at a
+  time -0.018 to -0.041 at beta = 100. At A <= 1 it helps (section 6): the sign of the
+  degree-spread effect follows the regime.
+- Structure beyond degree (real - degseq) and clustering (WS - ER) stay near 0 at A > 1
+  (within +/-0.006 and <= 0.010 at f <= 0.5).
+
+Hub reversal (hubs cooperate more), Spearman(cooperation, degree), real graphs:
+
+  Network     beta = 10: f = 1  f = 0.1    one at a time: beta = 1  beta = 100
+  asinternet        +0.33   +0.51                +0.01     +0.85
+  astroph           -0.03   +0.68                +0.27     +0.68
+  deezer            +0.16   +0.58                  -         -
+  emaileu           +0.09   +0.73                +0.20     +0.67
+  facebook          -0.01   +0.64                +0.19     +0.51
+  github            +0.12   +0.61                  -         -
+  gnutella          +0.26   +0.63                +0.18     +0.83
+  grqc              +0.11   +0.51                +0.19     +0.69
+  lastfm            +0.19   +0.59                +0.20     +0.78
+  twitch            +0.15   +0.59                +0.20     +0.75
+
+  beta = 10 columns: --regimes (4 cells, 5 reps). One-at-a-time columns: cell (2.0, 0.7),
+  3 reps. Node-level rho, no CIs per network beyond the reps.
+
+- The reversal is not a lockstep effect; lockstep weakened it. At f = 0.1 it is positive
+  on all 10 at beta = 10 (+0.51 to +0.73) and beta = 100 (+0.62 to +0.78). One at a time
+  it already shows at beta = 1 on 7 of 8 networks (+0.18 to +0.27; asinternet +0.01).
+
+
+5. C3: CLUSTERING (WS - ER), A <= 1
+-----------------------------------
+
+--regimes WS runs paired with the async scan's ER runs, 10 networks:
+
+  Network     beta = 100: f = 1   0.5     0.25    0.1        beta = 1, f = 0.1
+  asinternet           +0.026  -0.012  -0.027  -0.032          -0.014
+  astroph              +0.142  +0.066  +0.027  +0.006          -0.002
+  deezer               +0.028  +0.009  +0.003  -0.000          -0.004
+  emaileu              +0.069  +0.027  +0.004  -0.000          -0.001
+  facebook             +0.040  +0.009  -0.046  -0.061          -0.001
+  github               +0.024  +0.004  -0.001  -0.002          -0.003
+  gnutella             -0.001  -0.003  -0.003  -0.004          -0.002
+  grqc                 +0.132  +0.075  +0.054  +0.045          -0.006
+  lastfm               +0.038  +0.011  +0.002  -0.001          -0.008
+  twitch               +0.017  +0.007  +0.000  -0.002          -0.004
+
+- The high-beta clustering benefit was lockstep: |WS - ER| < 0.01 at f = 0.1 on 7 of 10.
+- grqc keeps +0.045 at f = 0.1 but is still falling with f; one at a time it is +0.009
+  on its 2 cells (f = 0.1 on the same cells: +0.016).
+- Facebook (-0.061) and asinternet (-0.032) are not a general clustering effect. They come
+  from the a = 0.2 cells, where WS and ER settle in different states: Facebook at
+  (b, a) = (1.5, 0.2), f = 0.1: ER 0.484, WS 0.231; the other three cells differ by
+  <= 0.006. A mean over 4 cells hides such switches; ER and WS are one graph each.
+
+
+6. C1 AND DEGREE SPREAD AT A <= 1, ONE AT A TIME
+------------------------------------------------
+
+Spearman(cooperation, degree), real graphs, --sequential cells (sync, f = 0.1, one at a time):
+
+  Network        beta = 1                 beta = 100
+  asinternet  -0.59 -0.51 -0.51         -0.47 -0.53 -0.52
+  astroph     -0.85 -0.74 -0.73         -0.35 -0.31 -0.27
+  emaileu     -0.80 -0.73 -0.73         -0.18 -0.36 -0.34
+  facebook    -0.77 -0.63 -0.62         +0.24 -0.18 -0.14
+  gnutella    -0.81 -0.77 -0.76         -0.68 -0.65 -0.64
+  grqc        -0.89 -0.83 -0.82         -0.24 -0.51 -0.51
+  lastfm      -0.88 -0.83 -0.82         -0.56 -0.59 -0.59
+  twitch      -0.76 -0.69 -0.68         -0.58 -0.51 -0.50
+
+- Hubs defect on all 8 networks at both beta. Facebook's high-beta exception (sync +0.24)
+  is gone one at a time (-0.14): it was lockstep.
+- At beta = 1, rho is 5-19% weaker one at a time than sync (Facebook most), and f = 0.1 is
+  already at the limit (difference <= 0.013).
+- Degree spread (degseq - ER) one at a time: +0.039 to +0.077 at beta = 1 and +0.022 to
+  +0.080 at beta = 100, all 8 (Facebook +0.022 on these cells).
+
+
+7. CLAIM REVISIONS (applied 2026-10-25 in ResearchQ/question.md and README.md)
+------------------------------------------------------------------------------
+
+C1  Now: robust to every update scheme tested. Facebook's beta = 100 exception was
+    lockstep. A > 1: the reversal is not lockstep (stronger without it; one at a time
+    already at beta = 1).
+C2  Before: fixed partners help only in lockstep.
+    Now: without lockstep they are neutral at beta = 1 and lower cooperation at high beta
+    (one at a time -0.007 to -0.034 at beta = 100). At A > 1 fixed seats lower cooperation
+    on all 10 networks. Keeping one's degree helps at low beta, robustly.
+C3  Before: uneven degrees help, robustly; structure beyond degree barely matters without
+    lockstep; clustering untested.
+    Now: uneven degrees help at A <= 1 and lower cooperation at A > 1, beta >= 10.
+    Structure beyond degree has no consistent effect without lockstep (f = 0.1: -0.032 to
+    +0.019; one at a time -0.010 to +0.016), reworded from "barely matters". The
+    high-beta clustering benefit was lockstep (grqc residual shrinking).
+
+
+8. CAVEATS
+----------
+
+- One at a time covers 8 networks, 3 cells, beta 1 and 100, 3 reps.
+- A > 1 cells are b 1.7/2.0 x a 0.6/0.7 only. At beta = 100 there updates are all or
+  nothing (p -> 0 or 1) and a defector needs >= a of its neighbours cooperating, so the
+  dynamics are mostly noise-driven; some contrasts are near 0 by construction.
+- Means over 4 (b, a) cells can hide state switches in single cells (Facebook and
+  asinternet clustering).
+- ER, WS are one graph each: CIs hold run noise only. Node-level rho: no CIs per network
+  beyond the reps.
+- Why fixed partners lower cooperation without lockstep has not been studied.
+
+Files: results/extra_regimes_runs.csv (16,800 runs), results/extra_sequential_runs.csv
+(864 runs), results/extra_regimes_contrasts.csv, results/extra_sequential_contrasts.csv,
+ResearchQ/question.md (H10, claims), src/extra_scans.py.
+Code and data: https://github.com/An1sh-R/BM-PD-Exploration

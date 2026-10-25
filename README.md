@@ -4,10 +4,11 @@ Weak Prisoner's Dilemma played by reinforcement learners (Bush–Mosteller, BM) 
 networks. Question: how much do fixed partners and network structure beyond the
 degree sequence change cooperation, and how does that depend on learning sensitivity β?
 Experiment 1 (below) used 5 networks; the extension (further down) adds 5 more and
-same-degree shuffle, ER, BA and WS versions of all 10. Two later checks (desynchronised
-updates, async scan) show that the high-β fixed-partner and structure effects in these
-sections come from all players updating at the same moment; hub defection and the benefit
-of uneven degrees survive. Current claims: `ResearchQ/question.md`.
+same-degree shuffle, ER, BA and WS versions of all 10. Three later checks (desynchronised
+updates, async scan, extra scans incl. one player at a time) show that the high-β
+fixed-partner, clustering and structure effects in these sections come from all players
+updating at the same moment; without it only degrees matter consistently (hubs defect,
+uneven degrees help when a cooperator can be satisfied). Current claims: `ResearchQ/question.md`.
 
 ## What was run
 
@@ -298,28 +299,50 @@ values are over this scan's 4 (b, a) cells, so they differ from the tables above
   negative at f = 0.1 on Facebook (−0.032), astroph (−0.023), emaileu (−0.015).
 - Not in the scan: WS (clustering), A > 1, β = 3.
 
-## Extra scans (2026-10-24, not run yet)
+## Extra scans (2026-10-25)
 
-`src/extra_scans.py` (mentor). Two runs reviewers will ask for:
+Mentor's script (`src/extra_scans.py`), two runs filling the async scan's gaps.
+Full report: `report_extra.txt`.
 
-- `--regimes`: the async-scan design (update fraction 1, 0.5, 0.25, 0.1 at equal updates per
-  player) for regime **A > 1** (6 graph types incl. WS) and for **WS in the A ≤ 1 cells**
-  (clustering = WS − ER). 16,800 runs, ~3.5 h on 12 processes.
-- `--sequential`: **fully asynchronous updating**, one player at a time
-  (`fast_model.run_bm_sequential`), 8 networks, β = 1 and 100, A ≤ 1 and A > 1 cells,
-  3 reps. 864 runs, ~3.7 h on 12 processes. Checked against update fraction 0.05
-  (`python src/check_fast_model.py --sequential`).
+- `--regimes`: the async-scan design (update fraction f = 1, 0.5, 0.25, 0.1 at equal
+  updates per player) for regime **A > 1** (b = 1.7, 2.0 × a = 0.6, 0.7; real, degseq,
+  samedeg, shuffled, ER, WS) and for **WS in the A ≤ 1 cells** (clustering = WS − ER).
+  10 networks × β = 1, 10, 100 × 5 reps = **16,800 runs** (`results/extra_regimes_runs.csv`).
+- `--sequential`: **one player at a time** (fully sequential, `fast_model.run_bm_sequential`;
+  the f → 0 limit, checked against f = 0.05: 6/6 cells within 0.0007). 8 networks (no Deezer,
+  GitHub: too slow), 6 graph types, β = 1, 100, cells (b, a) = (1.5, 0.4), (2.0, 0.2)
+  [A ≤ 1] and (2.0, 0.7) [A > 1], 3 reps = **864 runs** (`results/extra_sequential_runs.csv`).
 
-```
-python src/extra_scans.py --regimes --test --processes 4
-python src/extra_scans.py --sequential --test --processes 4
-python src/extra_scans.py --regimes --processes 12
-python src/extra_scans.py --sequential --processes 12
-python src/extra_scans.py --regimes --analyze
-python src/extra_scans.py --sequential --analyze
-```
+Checks: all runs present; f = 1 equals the synchronous sweeps in 4,200 of 4,200 runs
+(bit-identical); drift > 0.01 in ≤ 0.07% of runs.
 
-Prediction H10 in `ResearchQ/question.md`.
+| Contrast | Regime | β | f = 1 (sync) | f = 0.1 | One at a time |
+|---|---|---|---|---|---|
+| real − samedeg (fixed partners) | A ≤ 1 | 1 | +0.008 to +0.023 | −0.002 to +0.007 | −0.003 to +0.006 |
+| | | 100 | −0.057 to +0.155 | −0.022 to −0.001 | −0.034 to −0.007 |
+| real − shuffled (fixed seats) | A > 1 | 100 | +0.001 to +0.010 | −0.035 to −0.005 | −0.035 to −0.003 |
+| degseq − ER (degree spread) | A ≤ 1 | 100 | +0.051 to +0.105 | +0.022 to +0.082 | +0.022 to +0.080 |
+| | A > 1 | 100 | −0.004 to +0.005 | −0.041 to −0.020 | −0.041 to −0.018 |
+| WS − ER (clustering) | A ≤ 1 | 100 | +0.001 to +0.170 | −0.025 to +0.016 | −0.027 to +0.009 |
+| Spearman(cooperation, degree), real | A ≤ 1 | 100 | −0.68 to +0.24 | −0.65 to −0.18 | −0.64 to −0.14 |
+| | A > 1 | 1 | −0.63 to −0.23 | −0.31 to +0.10 | +0.01 to +0.27 |
+| | A > 1 | 100 | +0.10 to +0.68 | +0.62 to +0.78 | +0.51 to +0.85 |
+
+Ranges over networks. A > 1 rows with f = 1 and f = 0.1 are from `--regimes` (10 networks,
+4 cells); all other rows, and the one-at-a-time column, use the `--sequential` cells
+(8 networks) so the three columns compare the same settings.
+
+- **Fixed partners (C2)** without lockstep: ≈ 0 at β = 1, negative at β = 100 on all 8
+  (one at a time is more negative than f = 0.1 on 4 of 8 networks by > 0.005).
+- **A > 1**: fixed seats and uneven degrees *lower* cooperation at high β on every network,
+  more so as f falls; synchronously both were ≈ 0. The hub reversal (hubs cooperate more) is
+  stronger without lockstep and one at a time already shows at β = 1 (7 of 8 networks).
+- **Hubs defect (C1)** at A ≤ 1 on all 8 one at a time, including Facebook at β = 100
+  (−0.14; synchronous +0.24 on these cells).
+- **Clustering (C3)** at high β was lockstep: at f = 0.1, |WS − ER| < 0.01 on 7 of 10
+  (10-network `--regimes` runs). grqc keeps +0.045 but is still falling (+0.009 one at a
+  time); Facebook (−0.061) and asinternet (−0.032) come from the a = 0.2 cells, where WS
+  and ER settle in different states, not from a general clustering effect.
 
 ## Checks
 
@@ -354,9 +377,11 @@ src/
   analyze.py        diagnostics, contrasts, node level -> results/sweep_*
   band_test.py      hub defection vs the band rule -> results/band_test.csv
   async_scan.py     update fraction 1-0.1 at equal updates per player -> results/async_scan_*
+  extra_scans.py    --regimes (A > 1, WS) and --sequential (one player at a time) -> results/extra_*
   plot_graphs.py    network drawings -> graphs/
 results/            sweep_runs.csv (90,000 runs), sweep_more_runs.csv (330,000 runs),
-                    sweep_desync_runs.csv (84,000), async_scan_runs.csv (12,000), tables and figures
+                    sweep_desync_runs.csv (84,000), async_scan_runs.csv (12,000),
+                    extra_regimes_runs.csv (16,800), extra_sequential_runs.csv (864), tables and figures
 ```
 
 Python 3.12+ (tested on 3.14). From the project root:
@@ -379,6 +404,17 @@ next to its synchronous value. Test first: `python src/run.py --test --desync` (
 **Async scan**: `python src/async_scan.py --processes 12` (~2.5 h on 12 cores; restartable,
 skips finished runs), then `python src/async_scan.py --analyze`. Test: `--test`, then
 `--test --analyze`.
+
+**Extra scans** (`--regimes` first: the sequential analysis needs its runs):
+
+```
+python src/extra_scans.py --regimes --processes 12      (~4 h on 12 cores)
+python src/extra_scans.py --sequential --processes 12   (~3.5 h)
+python src/extra_scans.py --regimes --analyze
+python src/extra_scans.py --sequential --analyze
+```
+
+Test: add `--test` (with `--processes 4`), then `--test --analyze`. Restartable.
 
 `python src/run.py` reruns the full sweep (~6 h on 12 cores; it skips runs already in
 `results/sweep_runs.csv`, so delete or rename that file first). Per-node results
