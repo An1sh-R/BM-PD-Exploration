@@ -339,9 +339,10 @@ the A > 1 cell (2.0, 0.7); on that cell f = 0.1 matches it within 0.003 (contras
   (one at a time is more negative than f = 0.1 on 4 of 8 networks by > 0.005).
 - **A > 1**: fixed seats and uneven degrees *lower* cooperation at high β on every network,
   more so as f falls; synchronously both were ≈ 0. The hub reversal (hubs cooperate more) is
-  stronger without lockstep at β ≥ 10. At β = 1 its sign depends on the cell, not the update
-  scheme: positive at the largest A, (2.0, 0.7), at f = 0.1 and one at a time alike; the
-  4-cell mean at f = 0.1 is negative on 7 of 10.
+  stronger without lockstep at β ≥ 10. At β = 1 removing lockstep raises ρ too (4-cell
+  median −0.55 sync → −0.07 at f = 0.1; sync negative in every cell on all 10), and whether
+  it ends positive depends on the cell: at f = 0.1 positive on 9 of 10 at the largest A,
+  (2.0, 0.7) (one at a time alike), negative on 9 of 10 at (1.7, 0.6).
 - **Hubs defect (C1)** at A ≤ 1 on all 8 one at a time, including Facebook at β = 100
   (−0.14; synchronous +0.24 on these cells).
 - **Clustering (C3)** at high β was lockstep: at f = 0.1, |WS − ER| < 0.01 on 7 of 10

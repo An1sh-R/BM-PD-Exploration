@@ -148,11 +148,16 @@ Hub reversal (hubs cooperate more), Spearman(cooperation, degree), real graphs:
 
 - At beta >= 10 the reversal is not a lockstep effect; lockstep weakened it. At f = 0.1
   it is positive on all 10 at beta = 10 (+0.51 to +0.73) and beta = 100 (+0.62 to +0.78).
-- At beta = 1 its sign depends on the cell, not on the update scheme. On the one-at-a-time
-  cell (2.0, 0.7), the largest A, it is positive on 7 of 8 networks both one at a time
-  (+0.18 to +0.27; asinternet +0.01) and at f = 0.1 (+0.14 to +0.26; asinternet -0.005).
-  Over the 4 A > 1 cells at f = 0.1 it is negative on 7 of 10. Median over networks at
-  f = 0.1, beta = 1: (1.7, 0.6) -0.29, (2.0, 0.6) -0.18, (1.7, 0.7) +0.01, (2.0, 0.7) +0.18.
+- At beta = 1 removing lockstep raises rho as well: 4-cell median over networks -0.55
+  (f = 1), -0.21 (0.5), -0.12 (0.25), -0.07 (0.1). Synchronously rho is negative in all 4
+  cells on all 10 networks (cell medians -0.68 to -0.39). Whether it ends positive depends
+  on the cell. On the one-at-a-time cell (2.0, 0.7), the largest A, it is positive on 7 of
+  8 networks both one at a time (+0.18 to +0.27; asinternet +0.01) and at f = 0.1 (+0.14 to
+  +0.26; asinternet -0.005), against -0.48 to -0.13 synchronously. Over the 4 A > 1 cells at
+  f = 0.1 it is negative on 7 of 10. Median over networks at f = 0.1, beta = 1: (1.7, 0.6)
+  -0.29, (2.0, 0.6) -0.18, (1.7, 0.7) +0.01, (2.0, 0.7) +0.18.
+  (Corrected 2026-10-30: this bullet first said the sign depends on the cell "not on the
+  update scheme", which compared one at a time with f = 0.1 only and left out sync.)
 - One at a time vs f = 0.1 on the same cell (2.0, 0.7): contrasts within 0.003, rho within
   0.02 at beta = 100. The one-at-a-time columns differ from the f = 0.1 columns above
   mainly because they are one cell, not four.
@@ -215,7 +220,7 @@ Spearman(cooperation, degree), real graphs, --sequential cells (sync, f = 0.1, o
 
 C1  Now: robust to every update scheme tested. Facebook's beta = 100 exception was
     lockstep. A > 1: the reversal is not lockstep (stronger without it at beta >= 10;
-    at beta = 1 its sign depends on the cell).
+    at beta = 1 removing lockstep raises rho too, and its final sign depends on the cell).
 C2  Before: fixed partners help only in lockstep.
     Now: without lockstep they are neutral at beta = 1 and lower cooperation at high beta
     (one at a time -0.007 to -0.034 at beta = 100). At A > 1 fixed seats lower cooperation

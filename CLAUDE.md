@@ -40,7 +40,11 @@ BM-PD-Exploration/
     band_test.py      C1 mechanism test 1: hub defection vs the band rule -> results/band_test.csv
     async_scan.py     update_fraction 1-0.1 at equal updates per player (mentor) -> results/async_scan_*
     extra_scans.py    --regimes (A > 1, WS) and --sequential (one player at a time) (mentor) -> results/extra_*
+    ring_async.py     Ezaki & Masuda rings at update_fraction 1-0.05 (H11) -> results/ring_async.*
+    fig1_nodes.py     reruns 24 sequential runs (LastFM, grqc) for per-degree cooperation -> results/fig1_*.csv
+    paper_figures.py  Figs. 1-5 of the paper draft from the result CSVs -> researchP/figures/
     plot_graphs.py    network drawings -> graphs/
+  researchP/        paper drafts: main.pdf (v1, no source), main_v2.tex/.pdf, main_v3.tex/.pdf (current), figures/
   graphs/           one png per original real graph
   results/          sweep_runs.csv (exp 1), sweep_more_runs.csv (added networks + all samedeg/ER/BA/WS), sweep_desync_runs.csv (desync check; same run_ids as sync twins, never merge), async_scan_runs.csv, extra_regimes_runs.csv, extra_sequential_runs.csv, tables, figures
 ```
